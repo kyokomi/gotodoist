@@ -8,15 +8,15 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	if config == nil {
 		t.Fatal("DefaultConfig() returned nil")
 	}
-	
+
 	if config.BaseURL != "https://api.todoist.com/api/v1" {
 		t.Errorf("expected BaseURL to be https://api.todoist.com/api/v1, got %s", config.BaseURL)
 	}
-	
+
 	if config.APIToken != "" {
 		t.Errorf("expected APIToken to be empty, got %s", config.APIToken)
 	}
@@ -62,27 +62,27 @@ func TestLoadConfig(t *testing.T) {
 			}
 
 			config, err := LoadConfig()
-			
+
 			if tt.wantError {
 				if err == nil {
 					t.Error("expected error but got nil")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
-			
+
 			if config == nil {
 				t.Fatal("LoadConfig() returned nil config")
 			}
-			
+
 			if config.APIToken != tt.wantToken {
 				t.Errorf("expected APIToken %s, got %s", tt.wantToken, config.APIToken)
 			}
-			
+
 			if config.BaseURL != "https://api.todoist.com/api/v1" {
 				t.Errorf("expected BaseURL to be https://api.todoist.com/api/v1, got %s", config.BaseURL)
 			}
@@ -125,19 +125,19 @@ func TestConfig_NewAPIClient(t *testing.T) {
 			}
 
 			client, err := config.NewAPIClient()
-			
+
 			if tt.wantError {
 				if err == nil {
 					t.Error("expected error but got nil")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
-			
+
 			if client == nil {
 				t.Error("expected client but got nil")
 			}
@@ -151,18 +151,18 @@ func TestGetConfigDir(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 		return
 	}
-	
+
 	if configDir == "" {
 		t.Error("GetConfigDir() returned empty string")
 		return
 	}
-	
+
 	// 設定ディレクトリのパスが期待通りの形式かチェック
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("failed to get home directory: %v", err)
 	}
-	
+
 	expectedDir := filepath.Join(homeDir, ".gotodoist")
 	if configDir != expectedDir {
 		t.Errorf("expected config dir %s, got %s", expectedDir, configDir)
@@ -180,12 +180,12 @@ func TestConfig_NewAPIClient_WithCustomBaseURL(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 		return
 	}
-	
+
 	if client == nil {
 		t.Error("expected client but got nil")
 		return
 	}
-	
+
 	// BaseURL が正しく設定されているかは、APIクライアント内部の実装詳細なので
 	// ここでは単純にエラーが発生しないことを確認
 }
@@ -201,7 +201,7 @@ func TestConfig_NewAPIClient_WithEmptyBaseURL(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 		return
 	}
-	
+
 	if client == nil {
 		t.Error("expected client but got nil")
 	}

@@ -47,7 +47,7 @@ func TestVersionCommand_Integration(t *testing.T) {
 			break
 		}
 	}
-	
+
 	if !found {
 		t.Error("version command should be added to root command")
 	}
