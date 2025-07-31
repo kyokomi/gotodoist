@@ -14,14 +14,14 @@ type SyncRequest struct {
 
 // SyncResponse はSync APIのレスポンス構造体
 type SyncResponse struct {
-	SyncToken     string            `json:"sync_token"`
-	FullSync      bool              `json:"full_sync"`
-	Items         []Item            `json:"items,omitempty"`
-	Projects      []Project         `json:"projects,omitempty"`
-	Sections      []Section         `json:"sections,omitempty"`
-	Labels        []Label           `json:"labels,omitempty"`
-	Notes         []Note            `json:"notes,omitempty"`
-	TempIDMapping map[string]string `json:"temp_id_mapping,omitempty"`
+	SyncToken     string                 `json:"sync_token"`
+	FullSync      bool                   `json:"full_sync"`
+	Items         []Item                 `json:"items,omitempty"`
+	Projects      []Project              `json:"projects,omitempty"`
+	Sections      []Section              `json:"sections,omitempty"`
+	Labels        []Label                `json:"labels,omitempty"`
+	Notes         []Note                 `json:"notes,omitempty"`
+	TempIDMapping map[string]string      `json:"temp_id_mapping,omitempty"`
 	SyncStatus    map[string]interface{} `json:"sync_status,omitempty"`
 }
 
@@ -35,25 +35,25 @@ type Command struct {
 
 // Item はTodoistのタスク（アイテム）を表す
 type Item struct {
-	ID            string       `json:"id"`
-	UserID        string       `json:"user_id"`
-	ProjectID     string       `json:"project_id"`
-	SectionID     string       `json:"section_id,omitempty"`
-	Content       string       `json:"content"`
-	Description   string       `json:"description,omitempty"`
-	Priority      int          `json:"priority"`
-	ParentID      string       `json:"parent_id,omitempty"`
-	ChildOrder    int          `json:"child_order"`
-	DayOrder      int          `json:"day_order"`
-	Collapsed     bool         `json:"is_collapsed"`
-	Labels        []string     `json:"labels,omitempty"`
-	AssignedByUID string       `json:"assigned_by_uid,omitempty"`
-	ResponsibleUID string      `json:"responsible_uid,omitempty"`
-	DateAdded     TodoistTime  `json:"added_at"`
-	DateCompleted *TodoistTime `json:"completed_at,omitempty"`
-	IsDeleted     bool         `json:"is_deleted"`
-	SyncID        string       `json:"sync_id,omitempty"`
-	Due           *Due         `json:"due,omitempty"`
+	ID             string       `json:"id"`
+	UserID         string       `json:"user_id"`
+	ProjectID      string       `json:"project_id"`
+	SectionID      string       `json:"section_id,omitempty"`
+	Content        string       `json:"content"`
+	Description    string       `json:"description,omitempty"`
+	Priority       int          `json:"priority"`
+	ParentID       string       `json:"parent_id,omitempty"`
+	ChildOrder     int          `json:"child_order"`
+	DayOrder       int          `json:"day_order"`
+	Collapsed      bool         `json:"is_collapsed"`
+	Labels         []string     `json:"labels,omitempty"`
+	AssignedByUID  string       `json:"assigned_by_uid,omitempty"`
+	ResponsibleUID string       `json:"responsible_uid,omitempty"`
+	DateAdded      TodoistTime  `json:"added_at"`
+	DateCompleted  *TodoistTime `json:"completed_at,omitempty"`
+	IsDeleted      bool         `json:"is_deleted"`
+	SyncID         string       `json:"sync_id,omitempty"`
+	Due            *Due         `json:"due,omitempty"`
 }
 
 // Due はタスクの期限を表す
@@ -170,7 +170,7 @@ type TodoistTime struct {
 func (t *TodoistTime) UnmarshalJSON(data []byte) error {
 	// nullの場合の処理
 	if string(data) == "null" {
-		t.Time = time.Time{} // ゼロ値にセット
+		*t = TodoistTime{} // ゼロ値にセット
 		return nil
 	}
 
@@ -194,7 +194,7 @@ func (t *TodoistTime) UnmarshalJSON(data []byte) error {
 
 	for _, format := range formats {
 		if parsedTime, err := time.Parse(format, str); err == nil {
-			t.Time = parsedTime
+			*t = TodoistTime{parsedTime}
 			return nil
 		}
 	}
@@ -204,8 +204,8 @@ func (t *TodoistTime) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON は日時をJSONに変換する
 func (t TodoistTime) MarshalJSON() ([]byte, error) {
-	if t.Time.IsZero() {
+	if t.IsZero() {
 		return json.Marshal("")
 	}
-	return json.Marshal(t.Time.Format(time.RFC3339))
+	return json.Marshal(t.Format(time.RFC3339))
 }

@@ -117,13 +117,15 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to find project: %w", err)
 		}
 		tasks, err = client.GetTasksByProject(ctx, projectID)
+		if err != nil {
+			return fmt.Errorf("failed to get tasks: %w", err)
+		}
 	} else {
 		// 全タスクを取得
 		tasks, err = client.GetTasks(ctx)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to get tasks: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to get tasks: %w", err)
+		}
 	}
 
 	// フィルタリング
@@ -161,9 +163,9 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 // displayTask はタスクを表示する
 func displayTask(task api.Item, index int, projects map[string]string) {
 	priorityIcon := getPriorityIcon(task.Priority)
-	
+
 	fmt.Printf("%d. %s %s\n", index, priorityIcon, task.Content)
-	
+
 	if verbose {
 		fmt.Printf("   ID: %s\n", task.ID)
 		projectName, exists := projects[task.ProjectID]
@@ -184,11 +186,11 @@ func displayTask(task api.Item, index int, projects map[string]string) {
 			fmt.Printf("   Created: Unknown\n")
 		}
 	}
-	
+
 	if task.Description != "" && verbose {
 		fmt.Printf("   Description: %s\n", task.Description)
 	}
-	
+
 	fmt.Println()
 }
 
@@ -447,11 +449,15 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 			fmt.Printf("    Labels: %s\n", strings.Join(targetTask.Labels, ", "))
 		}
 		fmt.Printf("Enter your choice: ")
-		
+
 		var confirmation string
-		fmt.Scanln(&confirmation)
+		_, err := fmt.Scanln(&confirmation)
+		if err != nil {
+			fmt.Println("❌ Task deletion canceled")
+			return nil
+		}
 		if confirmation != "y" && confirmation != "Y" {
-			fmt.Println("❌ Task deletion cancelled")
+			fmt.Println("❌ Task deletion canceled")
 			return nil
 		}
 	}
