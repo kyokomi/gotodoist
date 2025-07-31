@@ -89,6 +89,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 
 	// フラグから設定を取得
 	projectFilter, _ := cmd.Flags().GetString("project")
+	filterExpression, _ := cmd.Flags().GetString("filter")
 	showAll, _ := cmd.Flags().GetBool("all")
 
 	var tasks []api.Item
@@ -114,6 +115,12 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 			}
 		}
 		tasks = activeTasks
+	}
+
+	// フィルタ式による絞り込み
+	if filterExpression != "" {
+		filteredTasks := filterTasks(tasks, filterExpression)
+		tasks = filteredTasks
 	}
 
 	if len(tasks) == 0 {
@@ -166,6 +173,57 @@ func getPriorityIcon(priority int) string {
 		return "🟢" // High
 	default:
 		return "⚪" // Normal
+	}
+}
+
+// filterTasks は指定されたフィルタ式でタスクを絞り込む
+func filterTasks(tasks []api.Item, filter string) []api.Item {
+	var filtered []api.Item
+	filter = strings.ToLower(filter)
+
+	for _, task := range tasks {
+		if matchesFilter(task, filter) {
+			filtered = append(filtered, task)
+		}
+	}
+
+	return filtered
+}
+
+// matchesFilter はタスクがフィルタ条件にマッチするかチェック
+func matchesFilter(task api.Item, filter string) bool {
+	// 基本的なキーワード検索
+	content := strings.ToLower(task.Content)
+	description := strings.ToLower(task.Description)
+
+	// 特別なフィルタ
+	switch {
+	case strings.HasPrefix(filter, "p1"):
+		return task.Priority == 1
+	case strings.HasPrefix(filter, "p2"):
+		return task.Priority == 2
+	case strings.HasPrefix(filter, "p3"):
+		return task.Priority == 3
+	case strings.HasPrefix(filter, "p4"):
+		return task.Priority == 4
+	case strings.HasPrefix(filter, "today"):
+		return task.Due != nil && strings.Contains(strings.ToLower(task.Due.String), "today")
+	case strings.HasPrefix(filter, "tomorrow"):
+		return task.Due != nil && strings.Contains(strings.ToLower(task.Due.String), "tomorrow")
+	case strings.HasPrefix(filter, "overdue"):
+		return task.Due != nil && strings.Contains(strings.ToLower(task.Due.String), "overdue")
+	case strings.HasPrefix(filter, "@"):
+		// ラベル検索
+		label := strings.TrimPrefix(filter, "@")
+		for _, taskLabel := range task.Labels {
+			if strings.Contains(strings.ToLower(taskLabel), label) {
+				return true
+			}
+		}
+		return false
+	default:
+		// 一般的なキーワード検索（内容と説明をチェック）
+		return strings.Contains(content, filter) || strings.Contains(description, filter)
 	}
 }
 
@@ -398,7 +456,7 @@ func init() {
 
 	// task list用のフラグ
 	taskListCmd.Flags().StringP("project", "p", "", "filter by project")
-	taskListCmd.Flags().StringP("filter", "f", "", "filter expression")
+	taskListCmd.Flags().StringP("filter", "f", "", "filter expression (p1-p4 for priority, @label for labels, keywords for content)")
 	taskListCmd.Flags().BoolP("all", "a", false, "show all tasks including completed")
 
 	// task add用のフラグ
