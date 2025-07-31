@@ -38,7 +38,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&lang, "lang", "", "language preference (en/ja)")
-	
+
 	// 設定の初期化（後で実装）
 	cobra.OnInitialize(initConfig)
 }

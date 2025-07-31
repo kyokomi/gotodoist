@@ -84,10 +84,10 @@ func init() {
 	projectCmd.AddCommand(projectUpdateCmd)
 	projectCmd.AddCommand(projectDeleteCmd)
 	projectCmd.AddCommand(projectArchiveCmd)
-	
+
 	// プロジェクトコマンドをルートコマンドに追加
 	rootCmd.AddCommand(projectCmd)
-	
+
 	// project list用のフラグ
 	projectListCmd.Flags().BoolP("tree", "t", false, "show projects in tree structure")
 	projectListCmd.Flags().BoolP("archived", "a", false, "show archived projects")

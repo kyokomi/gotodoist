@@ -90,10 +90,10 @@ func init() {
 	taskCmd.AddCommand(taskUpdateCmd)
 	taskCmd.AddCommand(taskDeleteCmd)
 	taskCmd.AddCommand(taskCompleteCmd)
-	
+
 	// タスクコマンドをルートコマンドに追加
 	rootCmd.AddCommand(taskCmd)
-	
+
 	// task list用のフラグ
 	taskListCmd.Flags().StringP("project", "p", "", "filter by project")
 	taskListCmd.Flags().StringP("filter", "f", "", "filter expression")
