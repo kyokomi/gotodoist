@@ -21,7 +21,7 @@ type SyncResponse struct {
 	Labels        []Label           `json:"labels,omitempty"`
 	Notes         []Note            `json:"notes,omitempty"`
 	TempIDMapping map[string]string `json:"temp_id_mapping,omitempty"`
-	SyncStatus    map[string]string `json:"sync_status,omitempty"`
+	SyncStatus    map[string]interface{} `json:"sync_status,omitempty"`
 }
 
 // Command はSync APIのコマンド構造体
