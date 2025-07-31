@@ -1,3 +1,5 @@
+// Package cmd provides command-line interface functionality for gotodoist.
+// This package contains all CLI commands and related implementations using cobra framework.
 package cmd
 
 import (
