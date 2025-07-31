@@ -95,7 +95,12 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	var tasks []api.Item
 	if projectFilter != "" {
 		// プロジェクト指定がある場合
-		tasks, err = client.GetTasksByProject(ctx, projectFilter)
+		// まずプロジェクト名で検索を試み、見つからなければIDとして扱う
+		projectID, err := findProjectIDByName(ctx, client, projectFilter)
+		if err != nil {
+			return fmt.Errorf("failed to find project: %w", err)
+		}
+		tasks, err = client.GetTasksByProject(ctx, projectID)
 	} else {
 		// 全タスクを取得
 		tasks, err = client.GetTasks(ctx)
@@ -227,6 +232,40 @@ func matchesFilter(task api.Item, filter string) bool {
 	}
 }
 
+// findProjectIDByName はプロジェクト名からIDを検索する
+func findProjectIDByName(ctx context.Context, client *api.Client, nameOrID string) (string, error) {
+	// まず全プロジェクトを取得
+	projects, err := client.GetAllProjects(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+
+	nameOrID = strings.ToLower(nameOrID)
+
+	// 完全一致で検索
+	for _, project := range projects {
+		if strings.ToLower(project.Name) == nameOrID {
+			return project.ID, nil
+		}
+	}
+
+	// 部分一致で検索
+	for _, project := range projects {
+		if strings.Contains(strings.ToLower(project.Name), nameOrID) {
+			return project.ID, nil
+		}
+	}
+
+	// IDとして直接指定されている可能性をチェック
+	for _, project := range projects {
+		if project.ID == nameOrID {
+			return project.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("project not found: %s", nameOrID)
+}
+
 // runTaskAdd はタスク追加の実際の処理
 func runTaskAdd(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadConfig()
@@ -258,7 +297,12 @@ func runTaskAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	if projectID != "" {
-		req.ProjectID = projectID
+		// プロジェクト名からIDを解決
+		resolvedProjectID, err := findProjectIDByName(ctx, client, projectID)
+		if err != nil {
+			return fmt.Errorf("failed to find project: %w", err)
+		}
+		req.ProjectID = resolvedProjectID
 	}
 
 	if priorityStr != "" {
@@ -455,12 +499,12 @@ func init() {
 	rootCmd.AddCommand(taskCmd)
 
 	// task list用のフラグ
-	taskListCmd.Flags().StringP("project", "p", "", "filter by project")
+	taskListCmd.Flags().StringP("project", "p", "", "filter by project name or ID")
 	taskListCmd.Flags().StringP("filter", "f", "", "filter expression (p1-p4 for priority, @label for labels, keywords for content)")
 	taskListCmd.Flags().BoolP("all", "a", false, "show all tasks including completed")
 
 	// task add用のフラグ
-	taskAddCmd.Flags().StringP("project", "p", "", "project ID to add task to")
+	taskAddCmd.Flags().StringP("project", "p", "", "project name or ID to add task to")
 	taskAddCmd.Flags().StringP("priority", "P", "", "task priority (1-4)")
 	taskAddCmd.Flags().StringP("due", "d", "", "due date (e.g., 'today', 'tomorrow', '2024-12-25')")
 	taskAddCmd.Flags().StringP("description", "D", "", "task description")
