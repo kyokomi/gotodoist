@@ -109,7 +109,7 @@ nfpms:
     package_name: gotodoist
     vendor: kyokomi
     homepage: https://github.com/kyokomi/gotodoist
-    maintainer: kyokomi <kyokomi.dev@gmail.com>
+    maintainer: kyokomi <email@kyokomi.dev>
     description: A command-line interface tool for managing your Todoist tasks
     license: MIT
     formats:
