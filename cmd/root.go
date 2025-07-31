@@ -7,6 +7,14 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/kyokomi/gotodoist/internal/config"
+)
+
+const (
+	notSetToken    = "(not set)"
+	maskedToken    = "***"
+	minTokenLength = 8
 )
 
 var (
@@ -14,6 +22,8 @@ var (
 	verbose bool
 	debug   bool
 	lang    string
+	// アプリケーション設定
+	appConfig *config.Config
 )
 
 // rootCmdはアプリケーションのベースコマンド
@@ -22,7 +32,18 @@ var rootCmd = &cobra.Command{
 	Short: "A CLI tool for Todoist",
 	Long: `gotodoist is a command-line interface tool for managing your Todoist tasks.
 	
-This tool allows you to manage tasks, projects, and more directly from your terminal.`,
+This tool allows you to manage tasks, projects, and more directly from your terminal.
+
+Configuration:
+  Configuration file: ~/.config/gotodoist/config.yaml
+  Environment variable: TODOIST_API_TOKEN
+
+Get started:
+  1. Set your API token: export TODOIST_API_TOKEN="your-token"
+  2. Or run: gotodoist config init
+  3. Get your API token from: https://todoist.com/prefs/integrations
+
+For more configuration options, run: gotodoist config --help`,
 	// ここではルートコマンド自体は何も実行しない
 	// サブコマンドが指定されていない場合はヘルプを表示
 }
@@ -45,8 +66,42 @@ func init() {
 	cobra.OnInitialize(initConfig)
 }
 
-// initConfig は設定を読み込む（後で実装）
+// initConfig は設定を読み込む
 func initConfig() {
-	// TODO: viperを使った設定管理を実装
-	// 環境変数、設定ファイル、フラグの優先順位で設定を読み込む
+	var err error
+	appConfig, err = config.LoadConfig()
+	if err != nil {
+		// 設定読み込みエラーは致命的エラーとして扱う
+		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
+		os.Exit(1)
+	}
+
+	// コマンドラインフラグで設定を上書き
+	if lang != "" {
+		appConfig.Language = lang
+	}
+
+	// デバッグモードの場合、設定情報を表示
+	if debug {
+		fmt.Fprintf(os.Stderr, "Configuration loaded:\n")
+		fmt.Fprintf(os.Stderr, "  API Token: %s\n", maskConfigToken(appConfig.APIToken))
+		fmt.Fprintf(os.Stderr, "  Base URL:  %s\n", appConfig.BaseURL)
+		fmt.Fprintf(os.Stderr, "  Language:  %s\n", appConfig.Language)
+	}
+}
+
+// maskConfigToken はトークンの一部を隠す（デバッグ用）
+func maskConfigToken(token string) string {
+	if token == "" {
+		return notSetToken
+	}
+	if len(token) < minTokenLength {
+		return maskedToken
+	}
+	return token[:4] + "..." + token[len(token)-4:]
+}
+
+// GetAppConfig はアプリケーション設定を返す
+func GetAppConfig() *config.Config {
+	return appConfig
 }
