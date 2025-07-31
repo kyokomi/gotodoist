@@ -24,9 +24,7 @@ var taskListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tasks",
 	Long:  `Display a list of all your Todoist tasks.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTaskList(cmd, args)
-	},
+	RunE:  runTaskList,
 }
 
 // taskAddCmd はタスク追加コマンド
@@ -35,9 +33,7 @@ var taskAddCmd = &cobra.Command{
 	Short: "Add a new task",
 	Long:  `Add a new task to your Todoist.`,
 	Args:  cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTaskAdd(cmd, args)
-	},
+	RunE:  runTaskAdd,
 }
 
 // taskUpdateCmd はタスク更新コマンド
@@ -46,9 +42,7 @@ var taskUpdateCmd = &cobra.Command{
 	Short: "Update an existing task",
 	Long:  `Update the content of an existing task.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTaskUpdate(cmd, args)
-	},
+	RunE:  runTaskUpdate,
 }
 
 // taskDeleteCmd はタスク削除コマンド
@@ -57,9 +51,7 @@ var taskDeleteCmd = &cobra.Command{
 	Short: "Delete a task",
 	Long:  `Delete a task from your Todoist.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTaskDelete(cmd, args)
-	},
+	RunE:  runTaskDelete,
 }
 
 // taskCompleteCmd はタスク完了コマンド
@@ -68,9 +60,7 @@ var taskCompleteCmd = &cobra.Command{
 	Short: "Mark a task as completed",
 	Long:  `Mark a task as completed in your Todoist.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTaskComplete(cmd, args)
-	},
+	RunE:  runTaskComplete,
 }
 
 // runTaskList はタスク一覧表示の実際の処理
@@ -93,20 +83,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	showAll, _ := cmd.Flags().GetBool("all")
 
 	// プロジェクト情報を取得（verbose表示用）
-	var projectsMap map[string]string
-	if verbose {
-		projects, err := client.GetAllProjects(ctx)
-		if err != nil {
-			// プロジェクト情報の取得に失敗してもタスク表示は続行
-			fmt.Printf("Warning: Failed to load project names: %v\n", err)
-			projectsMap = make(map[string]string)
-		} else {
-			projectsMap = make(map[string]string)
-			for _, project := range projects {
-				projectsMap[project.ID] = project.Name
-			}
-		}
-	}
+	projectsMap := buildProjectsMap(ctx, client, verbose)
 
 	var tasks []api.Item
 	if projectFilter != "" {
@@ -129,16 +106,7 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	}
 
 	// フィルタリング
-	if !showAll {
-		// 完了済みタスクを除外（実際には削除済みタスクは既に除外されている）
-		var activeTasks []api.Item
-		for _, task := range tasks {
-			if task.DateCompleted == nil {
-				activeTasks = append(activeTasks, task)
-			}
-		}
-		tasks = activeTasks
-	}
+	tasks = filterActiveTasks(tasks, showAll)
 
 	// フィルタ式による絞り込み
 	if filterExpression != "" {
@@ -153,15 +121,15 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 
 	// タスクを表示
 	fmt.Printf("📝 Found %d task(s):\n\n", len(tasks))
-	for i, task := range tasks {
-		displayTask(task, i+1, projectsMap)
+	for i := range tasks {
+		displayTask(&tasks[i], i+1, projectsMap)
 	}
 
 	return nil
 }
 
 // displayTask はタスクを表示する
-func displayTask(task api.Item, index int, projects map[string]string) {
+func displayTask(task *api.Item, index int, projects map[string]string) {
 	priorityIcon := getPriorityIcon(task.Priority)
 
 	fmt.Printf("%d. %s %s\n", index, priorityIcon, task.Content)
@@ -197,11 +165,11 @@ func displayTask(task api.Item, index int, projects map[string]string) {
 // getPriorityIcon は優先度に応じたアイコンを返す
 func getPriorityIcon(priority int) string {
 	switch priority {
-	case 4:
+	case int(api.PriorityUrgent):
 		return "🔴" // Urgent
-	case 3:
+	case int(api.PriorityVeryHigh):
 		return "🟡" // Very High
-	case 2:
+	case int(api.PriorityHigh):
 		return "🟢" // High
 	default:
 		return "⚪" // Normal
@@ -213,9 +181,9 @@ func filterTasks(tasks []api.Item, filter string) []api.Item {
 	var filtered []api.Item
 	filter = strings.ToLower(filter)
 
-	for _, task := range tasks {
-		if matchesFilter(task, filter) {
-			filtered = append(filtered, task)
+	for i := range tasks {
+		if matchesFilter(&tasks[i], filter) {
+			filtered = append(filtered, tasks[i])
 		}
 	}
 
@@ -223,7 +191,7 @@ func filterTasks(tasks []api.Item, filter string) []api.Item {
 }
 
 // matchesFilter はタスクがフィルタ条件にマッチするかチェック
-func matchesFilter(task api.Item, filter string) bool {
+func matchesFilter(task *api.Item, filter string) bool {
 	// 基本的なキーワード検索
 	content := strings.ToLower(task.Content)
 	description := strings.ToLower(task.Description)
@@ -231,13 +199,13 @@ func matchesFilter(task api.Item, filter string) bool {
 	// 特別なフィルタ
 	switch {
 	case strings.HasPrefix(filter, "p1"):
-		return task.Priority == 1
+		return task.Priority == int(api.PriorityNormal)
 	case strings.HasPrefix(filter, "p2"):
-		return task.Priority == 2
+		return task.Priority == int(api.PriorityHigh)
 	case strings.HasPrefix(filter, "p3"):
-		return task.Priority == 3
+		return task.Priority == int(api.PriorityVeryHigh)
 	case strings.HasPrefix(filter, "p4"):
-		return task.Priority == 4
+		return task.Priority == int(api.PriorityUrgent)
 	case strings.HasPrefix(filter, "today"):
 		return task.Due != nil && strings.Contains(strings.ToLower(task.Due.String), "today")
 	case strings.HasPrefix(filter, "tomorrow"):
@@ -370,7 +338,7 @@ func runTaskAdd(cmd *cobra.Command, args []string) error {
 }
 
 // runTaskComplete はタスク完了の実際の処理
-func runTaskComplete(cmd *cobra.Command, args []string) error {
+func runTaskComplete(_ *cobra.Command, args []string) error {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -492,6 +460,28 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	taskID := args[0]
 
+	// フラグからリクエストを構築
+	req, err := buildUpdateTaskRequestFromFlags(cmd)
+	if err != nil {
+		return err
+	}
+
+	// タスクを更新
+	resp, err := client.UpdateTask(ctx, taskID, req)
+	if err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	fmt.Printf("✏️  Task updated successfully!\n")
+	if verbose {
+		fmt.Printf("Sync token: %s\n", resp.SyncToken)
+	}
+
+	return nil
+}
+
+// buildUpdateTaskRequestFromFlags はフラグからUpdateTaskRequestを構築する
+func buildUpdateTaskRequestFromFlags(cmd *cobra.Command) (*api.UpdateTaskRequest, error) {
 	// フラグから設定を取得
 	content, _ := cmd.Flags().GetString("content")
 	priorityStr, _ := cmd.Flags().GetString("priority")
@@ -501,7 +491,7 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 
 	// 何も更新内容がない場合はエラー
 	if content == "" && priorityStr == "" && dueDate == "" && description == "" && labelsStr == "" {
-		return fmt.Errorf("at least one update field must be specified (--content, --priority, --due, --description, --labels)")
+		return nil, fmt.Errorf("at least one update field must be specified (--content, --priority, --due, --description, --labels)")
 	}
 
 	// リクエストを構築
@@ -518,10 +508,10 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 	if priorityStr != "" {
 		priority, err := strconv.Atoi(priorityStr)
 		if err != nil {
-			return fmt.Errorf("invalid priority: %s", priorityStr)
+			return nil, fmt.Errorf("invalid priority: %s", priorityStr)
 		}
 		if priority < 1 || priority > 4 {
-			return fmt.Errorf("priority must be between 1 and 4")
+			return nil, fmt.Errorf("priority must be between 1 and 4")
 		}
 		req.Priority = priority
 	}
@@ -538,18 +528,42 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 		req.Labels = labels
 	}
 
-	// タスクを更新
-	resp, err := client.UpdateTask(ctx, taskID, req)
+	return req, nil
+}
+
+// buildProjectsMap はverbose表示用のプロジェクトマップを構築する
+func buildProjectsMap(ctx context.Context, client *api.Client, verbose bool) map[string]string {
+	if !verbose {
+		return nil
+	}
+
+	projects, err := client.GetAllProjects(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to update task: %w", err)
+		// プロジェクト情報の取得に失敗してもタスク表示は続行
+		fmt.Printf("Warning: Failed to load project names: %v\n", err)
+		return make(map[string]string)
 	}
 
-	fmt.Printf("✏️  Task updated successfully!\n")
-	if verbose {
-		fmt.Printf("Sync token: %s\n", resp.SyncToken)
+	projectsMap := make(map[string]string)
+	for _, project := range projects {
+		projectsMap[project.ID] = project.Name
+	}
+	return projectsMap
+}
+
+// filterActiveTasks は完了済みタスクを除外する
+func filterActiveTasks(tasks []api.Item, showAll bool) []api.Item {
+	if showAll {
+		return tasks
 	}
 
-	return nil
+	var activeTasks []api.Item
+	for i := range tasks {
+		if tasks[i].DateCompleted == nil {
+			activeTasks = append(activeTasks, tasks[i])
+		}
+	}
+	return activeTasks
 }
 
 func init() {

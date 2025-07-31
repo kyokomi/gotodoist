@@ -39,11 +39,8 @@ type UpdateTaskRequest struct {
 
 // CreateTask は新しいタスクを作成する
 func (c *Client) CreateTask(ctx context.Context, req *CreateTaskRequest) (*SyncResponse, error) {
-	if req == nil {
-		return nil, fmt.Errorf("create task request is required")
-	}
-	if req.Content == "" {
-		return nil, fmt.Errorf("task content is required")
+	if err := validateCreateTaskRequest(req); err != nil {
+		return nil, err
 	}
 
 	args := map[string]interface{}{
@@ -111,11 +108,11 @@ func (c *Client) CreateTask(ctx context.Context, req *CreateTaskRequest) (*SyncR
 
 // UpdateTask は既存のタスクを更新する
 func (c *Client) UpdateTask(ctx context.Context, taskID string, req *UpdateTaskRequest) (*SyncResponse, error) {
-	if taskID == "" {
-		return nil, fmt.Errorf("task ID is required")
+	if err := validateTaskID(taskID); err != nil {
+		return nil, err
 	}
-	if req == nil {
-		return nil, fmt.Errorf("update task request is required")
+	if err := validateUpdateTaskRequest(req); err != nil {
+		return nil, err
 	}
 
 	args := map[string]interface{}{
@@ -188,8 +185,8 @@ func (c *Client) GetTasks(ctx context.Context) ([]Item, error) {
 
 // GetTasksByProject は指定されたプロジェクトのタスクを取得する
 func (c *Client) GetTasksByProject(ctx context.Context, projectID string) ([]Item, error) {
-	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+	if err := validateProjectID(projectID); err != nil {
+		return nil, err
 	}
 
 	tasks, err := c.GetTasks(ctx)

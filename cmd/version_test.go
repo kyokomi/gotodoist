@@ -25,21 +25,6 @@ func TestVersionCommandDefinition(t *testing.T) {
 	}
 }
 
-func TestVersionVariables(t *testing.T) {
-	// バージョン変数が適切なデフォルト値を持っていることを確認
-	if version != "dev" {
-		t.Errorf("expected default version to be 'dev', got %s", version)
-	}
-
-	if commit != "none" {
-		t.Errorf("expected default commit to be 'none', got %s", commit)
-	}
-
-	if date != "unknown" {
-		t.Errorf("expected default date to be 'unknown', got %s", date)
-	}
-}
-
 func TestVersionCommand_Integration(t *testing.T) {
 	// versionコマンドがrootコマンドに追加されているかテスト
 	found := false

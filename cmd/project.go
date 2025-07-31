@@ -11,6 +11,12 @@ import (
 	"github.com/kyokomi/gotodoist/internal/config"
 )
 
+const (
+	iconFolder = "📁"
+	iconInbox  = "📥"
+	iconShared = "👥"
+)
+
 // projectCmd はプロジェクト関連のコマンド
 var projectCmd = &cobra.Command{
 	Use:   "project",
@@ -23,9 +29,7 @@ var projectListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all projects",
 	Long:  `Display a list of all your Todoist projects.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectList(cmd, args)
-	},
+	RunE:  runProjectList,
 }
 
 // projectAddCmd はプロジェクト追加コマンド
@@ -34,9 +38,7 @@ var projectAddCmd = &cobra.Command{
 	Short: "Add a new project",
 	Long:  `Add a new project to your Todoist.`,
 	Args:  cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectAdd(cmd, args)
-	},
+	RunE:  runProjectAdd,
 }
 
 // projectUpdateCmd はプロジェクト更新コマンド
@@ -45,9 +47,7 @@ var projectUpdateCmd = &cobra.Command{
 	Short: "Update an existing project",
 	Long:  `Update an existing project. Use --name, --color, or --favorite flags to specify what to update.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectUpdate(cmd, args)
-	},
+	RunE:  runProjectUpdate,
 }
 
 // projectDeleteCmd はプロジェクト削除コマンド
@@ -56,9 +56,7 @@ var projectDeleteCmd = &cobra.Command{
 	Short: "Delete a project",
 	Long:  `Delete a project from your Todoist.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectDelete(cmd, args)
-	},
+	RunE:  runProjectDelete,
 }
 
 // projectArchiveCmd はプロジェクトアーカイブコマンド
@@ -67,9 +65,7 @@ var projectArchiveCmd = &cobra.Command{
 	Short: "Archive a project",
 	Long:  `Archive a project in your Todoist.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectArchive(cmd, args)
-	},
+	RunE:  runProjectArchive,
 }
 
 // projectUnarchiveCmd はプロジェクトアーカイブ解除コマンド
@@ -78,9 +74,7 @@ var projectUnarchiveCmd = &cobra.Command{
 	Short: "Unarchive a project",
 	Long:  `Unarchive a project in your Todoist.`,
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runProjectUnarchive(cmd, args)
-	},
+	RunE:  runProjectUnarchive,
 }
 
 func init() {
@@ -147,44 +141,17 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 	}
 
 	// アーカイブフィルタリング
-	if showArchived {
-		// アーカイブ済みプロジェクトのみ表示
-		var archivedProjects []api.Project
-		for _, project := range projects {
-			if project.IsArchived {
-				archivedProjects = append(archivedProjects, project)
-			}
-		}
-		projects = archivedProjects
-	} else {
-		// アクティブなプロジェクトのみ表示（デフォルト）
-		var activeProjects []api.Project
-		for _, project := range projects {
-			if !project.IsArchived {
-				activeProjects = append(activeProjects, project)
-			}
-		}
-		projects = activeProjects
-	}
+	projects = filterProjectsByArchiveStatus(projects, showArchived)
+
+	// タイトルを取得
+	title, emptyMessage := getProjectListTitle(showArchived, showFavorites)
 
 	if len(projects) == 0 {
-		if showArchived {
-			fmt.Println("📦 No archived projects found")
-		} else if showFavorites {
-			fmt.Println("⭐ No favorite projects found")
-		} else {
-			fmt.Println("📁 No projects found")
-		}
+		fmt.Println(emptyMessage)
 		return nil
 	}
 
 	// プロジェクトを表示
-	title := "📁 Projects"
-	if showArchived {
-		title = "📦 Archived Projects"
-	} else if showFavorites {
-		title = "⭐ Favorite Projects"
-	}
 	fmt.Printf("%s (%d):\n\n", title, len(projects))
 
 	if showTree {
@@ -199,11 +166,11 @@ func runProjectList(cmd *cobra.Command, args []string) error {
 // displayProjectsList はプロジェクトをリスト形式で表示する
 func displayProjectsList(projects []api.Project) {
 	for i, project := range projects {
-		icon := "📁"
+		icon := iconFolder
 		if project.InboxProject {
-			icon = "📥"
+			icon = iconInbox
 		} else if project.Shared {
-			icon = "👥"
+			icon = iconShared
 		}
 
 		fmt.Printf("%d. %s %s", i+1, icon, project.Name)
@@ -233,6 +200,89 @@ func displayProjectsList(projects []api.Project) {
 	}
 }
 
+// filterProjectsByArchiveStatus はアーカイブ状態でプロジェクトをフィルタリングする
+func filterProjectsByArchiveStatus(projects []api.Project, showArchived bool) []api.Project {
+	var filtered []api.Project
+
+	if showArchived {
+		// アーカイブ済みプロジェクトのみ表示
+		for _, project := range projects {
+			if project.IsArchived {
+				filtered = append(filtered, project)
+			}
+		}
+	} else {
+		// アクティブなプロジェクトのみ表示（デフォルト）
+		for _, project := range projects {
+			if !project.IsArchived {
+				filtered = append(filtered, project)
+			}
+		}
+	}
+
+	return filtered
+}
+
+// getProjectListTitle はプロジェクトリストのタイトルを取得する
+func getProjectListTitle(showArchived, showFavorites bool) (title, emptyMessage string) {
+	if showArchived {
+		return "📦 Archived Projects", "📦 No archived projects found"
+	} else if showFavorites {
+		return "⭐ Favorite Projects", "⭐ No favorite projects found"
+	} else {
+		return "📁 Projects", "📁 No projects found"
+	}
+}
+
+// findProjectByID は指定されたIDのプロジェクトを取得する
+func findProjectByID(ctx context.Context, client *api.Client, projectID string) (*api.Project, error) {
+	projects, err := client.GetAllProjects(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get projects: %w", err)
+	}
+
+	for i := range projects {
+		if projects[i].ID == projectID {
+			return &projects[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("project not found")
+}
+
+// confirmProjectDeletion はプロジェクト削除の確認を行う
+func confirmProjectDeletion(project *api.Project, force bool) bool {
+	if force {
+		return true
+	}
+
+	fmt.Printf("⚠️  Are you sure you want to delete this project? (y/N)\n")
+	fmt.Printf("    ID: %s\n", project.ID)
+	fmt.Printf("    Name: %s\n", project.Name)
+	fmt.Printf("    Color: %s\n", project.Color)
+	if project.IsFavorite {
+		fmt.Printf("    Favorite: Yes ⭐\n")
+	}
+	if project.Shared {
+		fmt.Printf("    Shared: Yes 👥\n")
+	}
+	fmt.Printf("Enter your choice: ")
+
+	var confirmation string
+	_, err := fmt.Scanln(&confirmation)
+	if err != nil {
+		fmt.Println("❌ Project deletion canceled")
+		return false
+	}
+
+	if confirmation != "y" && confirmation != "Y" {
+		fmt.Println("❌ Project deletion canceled")
+		return false
+	}
+
+	return true
+}
+
 // displayProjectsTree はプロジェクトをツリー形式で表示する（簡易実装）
 func displayProjectsTree(projects []api.Project) {
 	// 親プロジェクトマップを作成
@@ -248,19 +298,19 @@ func displayProjectsTree(projects []api.Project) {
 	}
 
 	// ルートプロジェクトから表示
-	for _, project := range rootProjects {
-		displayProjectTreeNode(project, parentMap, 0)
+	for i := range rootProjects {
+		displayProjectTreeNode(&rootProjects[i], parentMap, 0)
 	}
 }
 
 // displayProjectTreeNode は単一のプロジェクトノードをツリー形式で表示する
-func displayProjectTreeNode(project api.Project, parentMap map[string][]api.Project, depth int) {
+func displayProjectTreeNode(project *api.Project, parentMap map[string][]api.Project, depth int) {
 	indent := strings.Repeat("  ", depth)
-	icon := "📁"
+	icon := iconFolder
 	if project.InboxProject {
-		icon = "📥"
+		icon = iconInbox
 	} else if project.Shared {
-		icon = "👥"
+		icon = iconShared
 	}
 
 	fmt.Printf("%s├─ %s %s", indent, icon, project.Name)
@@ -280,8 +330,8 @@ func displayProjectTreeNode(project api.Project, parentMap map[string][]api.Proj
 
 	// 子プロジェクトを表示
 	if children, exists := parentMap[project.ID]; exists {
-		for _, child := range children {
-			displayProjectTreeNode(child, parentMap, depth+1)
+		for i := range children {
+			displayProjectTreeNode(&children[i], parentMap, depth+1)
 		}
 	}
 }
@@ -465,48 +515,16 @@ func runProjectDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// プロジェクトの詳細を取得（確認用）
-	projects, err := client.GetAllProjects(ctx)
+	targetProject, err := findProjectByID(ctx, client, projectID)
 	if err != nil {
-		return fmt.Errorf("failed to get projects: %w", err)
-	}
-
-	var targetProject *api.Project
-	for i := range projects {
-		if projects[i].ID == projectID {
-			targetProject = &projects[i]
-			break
-		}
-	}
-
-	if targetProject == nil {
-		return fmt.Errorf("project not found: %s", projectIDOrName)
+		return fmt.Errorf("project not found: %s - %w", projectIDOrName, err)
 	}
 
 	// 確認フラグをチェック
 	force, _ := cmd.Flags().GetBool("force")
-	if !force {
-		fmt.Printf("⚠️  Are you sure you want to delete this project? (y/N)\n")
-		fmt.Printf("    ID: %s\n", targetProject.ID)
-		fmt.Printf("    Name: %s\n", targetProject.Name)
-		fmt.Printf("    Color: %s\n", targetProject.Color)
-		if targetProject.IsFavorite {
-			fmt.Printf("    Favorite: Yes ⭐\n")
-		}
-		if targetProject.Shared {
-			fmt.Printf("    Shared: Yes 👥\n")
-		}
-		fmt.Printf("Enter your choice: ")
-
-		var confirmation string
-		_, err := fmt.Scanln(&confirmation)
-		if err != nil {
-			fmt.Println("❌ Project deletion canceled")
-			return nil
-		}
-		if confirmation != "y" && confirmation != "Y" {
-			fmt.Println("❌ Project deletion canceled")
-			return nil
-		}
+	confirmed := confirmProjectDeletion(targetProject, force)
+	if !confirmed {
+		return nil
 	}
 
 	// プロジェクトを削除する
@@ -524,8 +542,12 @@ func runProjectDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runProjectArchive はプロジェクトアーカイブの実際の処理
-func runProjectArchive(cmd *cobra.Command, args []string) error {
+// runProjectArchiveAction はプロジェクトアーカイブ/解除の共通処理
+func runProjectArchiveAction(
+	projectIDOrName string,
+	operation func(context.Context, string) (*api.SyncResponse, error),
+	successMessage, errorMessage string,
+) error {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -537,7 +559,6 @@ func runProjectArchive(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	projectIDOrName := args[0]
 
 	// プロジェクトIDを解決
 	projectID, err := findProjectIDByNameInProject(ctx, client, projectIDOrName)
@@ -545,13 +566,13 @@ func runProjectArchive(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to find project: %w", err)
 	}
 
-	// プロジェクトをアーカイブする
-	resp, err := client.ArchiveProject(ctx, projectID)
+	// 指定された操作を実行
+	resp, err := operation(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("failed to archive project: %w", err)
+		return fmt.Errorf("%s: %w", errorMessage, err)
 	}
 
-	fmt.Printf("📦 Project archived successfully!\n")
+	fmt.Printf("%s\n", successMessage)
 	if verbose {
 		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
 	}
@@ -559,8 +580,8 @@ func runProjectArchive(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runProjectUnarchive はプロジェクトアーカイブ解除の実際の処理
-func runProjectUnarchive(cmd *cobra.Command, args []string) error {
+// runProjectArchive はプロジェクトアーカイブの実際の処理
+func runProjectArchive(_ *cobra.Command, args []string) error {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -571,25 +592,30 @@ func runProjectUnarchive(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	ctx := context.Background()
-	projectIDOrName := args[0]
+	return runProjectArchiveAction(
+		args[0],
+		client.ArchiveProject,
+		"📦 Project archived successfully!",
+		"failed to archive project",
+	)
+}
 
-	// プロジェクトIDを解決
-	projectID, err := findProjectIDByNameInProject(ctx, client, projectIDOrName)
+// runProjectUnarchive はプロジェクトアーカイブ解除の実際の処理
+func runProjectUnarchive(_ *cobra.Command, args []string) error {
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to find project: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// プロジェクトのアーカイブを解除する
-	resp, err := client.UnarchiveProject(ctx, projectID)
+	client, err := cfg.NewAPIClient()
 	if err != nil {
-		return fmt.Errorf("failed to unarchive project: %w", err)
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	fmt.Printf("📁 Project unarchived successfully!\n")
-	if verbose {
-		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
-	}
-
-	return nil
+	return runProjectArchiveAction(
+		args[0],
+		client.UnarchiveProject,
+		"📁 Project unarchived successfully!",
+		"failed to unarchive project",
+	)
 }
