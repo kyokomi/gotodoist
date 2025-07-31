@@ -271,7 +271,7 @@ func findProjectIDByName(ctx context.Context, client *api.Client, nameOrID strin
 
 	// 完全一致で検索
 	for _, project := range projects {
-		if strings.ToLower(project.Name) == nameOrID {
+		if strings.EqualFold(project.Name, nameOrID) {
 			return project.ID, nil
 		}
 	}
