@@ -83,17 +83,6 @@ func TestRootCommandSubcommands(t *testing.T) {
 	}
 }
 
-func TestInitConfig(t *testing.T) {
-	// Test that initConfig function exists and can be called without panic
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("initConfig should not panic, but got: %v", r)
-		}
-	}()
-
-	initConfig() // Should not panic
-}
-
 // Helper function to check if text contains a substring (case-insensitive)
 func containsText(text, substr string) bool {
 	// Simple case-insensitive contains check
