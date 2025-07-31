@@ -91,10 +91,14 @@ func (c *Client) CreateTask(ctx context.Context, req *CreateTaskRequest) (*SyncR
 		args["responsible_uid"] = req.AssigneeID
 	}
 
+	tempID := uuid.New().String()
+	args["temp_id"] = tempID
+	
 	cmd := Command{
-		Type: CommandItemAdd,
-		UUID: uuid.New().String(),
-		Args: args,
+		Type:   CommandItemAdd,
+		UUID:   uuid.New().String(),
+		TempID: tempID,
+		Args:   args,
 	}
 
 	request := &SyncRequest{

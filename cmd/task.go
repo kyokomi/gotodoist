@@ -92,6 +92,22 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	filterExpression, _ := cmd.Flags().GetString("filter")
 	showAll, _ := cmd.Flags().GetBool("all")
 
+	// プロジェクト情報を取得（verbose表示用）
+	var projectsMap map[string]string
+	if verbose {
+		projects, err := client.GetAllProjects(ctx)
+		if err != nil {
+			// プロジェクト情報の取得に失敗してもタスク表示は続行
+			fmt.Printf("Warning: Failed to load project names: %v\n", err)
+			projectsMap = make(map[string]string)
+		} else {
+			projectsMap = make(map[string]string)
+			for _, project := range projects {
+				projectsMap[project.ID] = project.Name
+			}
+		}
+	}
+
 	var tasks []api.Item
 	if projectFilter != "" {
 		// プロジェクト指定がある場合
@@ -136,28 +152,37 @@ func runTaskList(cmd *cobra.Command, args []string) error {
 	// タスクを表示
 	fmt.Printf("📝 Found %d task(s):\n\n", len(tasks))
 	for i, task := range tasks {
-		displayTask(task, i+1)
+		displayTask(task, i+1, projectsMap)
 	}
 
 	return nil
 }
 
 // displayTask はタスクを表示する
-func displayTask(task api.Item, index int) {
+func displayTask(task api.Item, index int, projects map[string]string) {
 	priorityIcon := getPriorityIcon(task.Priority)
 	
 	fmt.Printf("%d. %s %s\n", index, priorityIcon, task.Content)
 	
 	if verbose {
 		fmt.Printf("   ID: %s\n", task.ID)
-		fmt.Printf("   Project: %s\n", task.ProjectID)
+		projectName, exists := projects[task.ProjectID]
+		if exists {
+			fmt.Printf("   Project: %s (%s)\n", projectName, task.ProjectID)
+		} else {
+			fmt.Printf("   Project: %s\n", task.ProjectID)
+		}
 		if task.Due != nil {
 			fmt.Printf("   Due: %s\n", task.Due.String)
 		}
 		if len(task.Labels) > 0 {
 			fmt.Printf("   Labels: %s\n", strings.Join(task.Labels, ", "))
 		}
-		fmt.Printf("   Created: %s\n", task.DateAdded.Format("2006-01-02 15:04"))
+		if !task.DateAdded.IsZero() {
+			fmt.Printf("   Created: %s\n", task.DateAdded.Format("2006-01-02 15:04"))
+		} else {
+			fmt.Printf("   Created: Unknown\n")
+		}
 	}
 	
 	if task.Description != "" && verbose {
@@ -386,10 +411,43 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	taskID := args[0]
 
+	// タスクの存在確認
+	tasks, err := client.GetTasks(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get tasks: %w", err)
+	}
+
+	var targetTask *api.Item
+	for i := range tasks {
+		if tasks[i].ID == taskID {
+			targetTask = &tasks[i]
+			break
+		}
+	}
+
+	if targetTask == nil {
+		fmt.Printf("❌ Task with ID '%s' not found.\n\n", taskID)
+		fmt.Printf("💡 To find the correct task ID, use one of these commands:\n")
+		fmt.Printf("   gotodoist task list -v                    # Show all tasks with IDs\n")
+		fmt.Printf("   gotodoist task list -v -f \"keyword\"       # Search tasks containing 'keyword'\n")
+		fmt.Printf("   gotodoist task list -v -p \"project name\"  # Show tasks in specific project\n")
+		return nil
+	}
+
 	// 確認フラグをチェック
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
-		fmt.Printf("⚠️  Are you sure you want to delete task %s? (y/N): ", taskID)
+		fmt.Printf("⚠️  Are you sure you want to delete this task? (y/N)\n")
+		fmt.Printf("    ID: %s\n", targetTask.ID)
+		fmt.Printf("    Content: %s\n", targetTask.Content)
+		if targetTask.Description != "" {
+			fmt.Printf("    Description: %s\n", targetTask.Description)
+		}
+		if len(targetTask.Labels) > 0 {
+			fmt.Printf("    Labels: %s\n", strings.Join(targetTask.Labels, ", "))
+		}
+		fmt.Printf("Enter your choice: ")
+		
 		var confirmation string
 		fmt.Scanln(&confirmation)
 		if confirmation != "y" && confirmation != "Y" {
@@ -405,8 +463,9 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("🗑️  Task deleted successfully!\n")
+	fmt.Printf("    Deleted: %s\n", targetTask.Content)
 	if verbose {
-		fmt.Printf("Sync token: %s\n", resp.SyncToken)
+		fmt.Printf("    Sync token: %s\n", resp.SyncToken)
 	}
 
 	return nil
