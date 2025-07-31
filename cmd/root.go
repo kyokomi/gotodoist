@@ -1,3 +1,4 @@
+// Package cmd provides CLI command implementations for gotodoist.
 package cmd
 
 import (

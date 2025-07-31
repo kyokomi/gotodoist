@@ -14,7 +14,7 @@ import (
 
 // デフォルト設定
 const (
-	DefaultBaseURL = "https://api.todoist.com/rest/v1"
+	DefaultBaseURL = "https://api.todoist.com"
 	DefaultTimeout = 30 * time.Second
 	UserAgent      = "gotodoist/dev"
 
@@ -172,4 +172,26 @@ func (e *APIError) IsForbidden() bool {
 // IsRateLimited はエラーが429かどうかを判定する
 func (e *APIError) IsRateLimited() bool {
 	return e.StatusCode == http.StatusTooManyRequests
+}
+
+// Sync はSync APIを実行する
+func (c *Client) Sync(ctx context.Context, req *SyncRequest) (*SyncResponse, error) {
+	if req == nil {
+		req = &SyncRequest{
+			SyncToken:     "*",
+			ResourceTypes: []string{ResourceAll},
+		}
+	}
+
+	httpReq, err := c.newRequest(ctx, http.MethodPost, "/sync/v9/sync", req)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp SyncResponse
+	if err := c.do(httpReq, &resp); err != nil {
+		return nil, fmt.Errorf("sync request failed: %w", err)
+	}
+
+	return &resp, nil
 }

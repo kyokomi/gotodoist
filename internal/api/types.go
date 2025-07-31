@@ -4,145 +4,158 @@ import (
 	"time"
 )
 
-// Task はTodoistのタスクを表す
-type Task struct {
-	ID           string    `json:"id"`
-	ProjectID    string    `json:"project_id"`
-	SectionID    string    `json:"section_id,omitempty"`
-	Content      string    `json:"content"`
-	Description  string    `json:"description,omitempty"`
-	IsCompleted  bool      `json:"is_completed"`
-	Labels       []string  `json:"labels,omitempty"`
-	Priority     int       `json:"priority"`
-	CommentCount int       `json:"comment_count"`
-	CreatedAt    time.Time `json:"created_at"`
-	URL          string    `json:"url"`
-	CreatorID    string    `json:"creator_id"`
-	AssigneeID   string    `json:"assignee_id,omitempty"`
-	AssignerID   string    `json:"assigner_id,omitempty"`
-	Order        int       `json:"order"`
-	Due          *Due      `json:"due,omitempty"`
-	Duration     *Duration `json:"duration,omitempty"`
+// SyncRequest はSync APIのリクエスト構造体
+type SyncRequest struct {
+	SyncToken     string    `json:"sync_token"`
+	ResourceTypes []string  `json:"resource_types"`
+	Commands      []Command `json:"commands,omitempty"`
+}
+
+// SyncResponse はSync APIのレスポンス構造体
+type SyncResponse struct {
+	SyncToken     string            `json:"sync_token"`
+	FullSync      bool              `json:"full_sync"`
+	Items         []Item            `json:"items,omitempty"`
+	Projects      []Project         `json:"projects,omitempty"`
+	Sections      []Section         `json:"sections,omitempty"`
+	Labels        []Label           `json:"labels,omitempty"`
+	Notes         []Note            `json:"notes,omitempty"`
+	TempIDMapping map[string]string `json:"temp_id_mapping,omitempty"`
+	SyncStatus    map[string]string `json:"sync_status,omitempty"`
+}
+
+// Command はSync APIのコマンド構造体
+type Command struct {
+	Type   string                 `json:"type"`
+	UUID   string                 `json:"uuid"`
+	TempID string                 `json:"temp_id,omitempty"`
+	Args   map[string]interface{} `json:"args"`
+}
+
+// Item はTodoistのタスク（アイテム）を表す
+type Item struct {
+	ID            string     `json:"id"`
+	UserID        string     `json:"user_id"`
+	ProjectID     string     `json:"project_id"`
+	SectionID     string     `json:"section_id,omitempty"`
+	Content       string     `json:"content"`
+	Description   string     `json:"description,omitempty"`
+	Priority      int        `json:"priority"`
+	ParentID      string     `json:"parent_id,omitempty"`
+	ChildOrder    int        `json:"child_order"`
+	DayOrder      int        `json:"day_order"`
+	Collapsed     bool       `json:"collapsed"`
+	Labels        []string   `json:"labels,omitempty"`
+	AssignedBy    string     `json:"assigned_by,omitempty"`
+	Responsible   string     `json:"responsible,omitempty"`
+	DateAdded     time.Time  `json:"date_added"`
+	DateCompleted *time.Time `json:"date_completed,omitempty"`
+	IsDeleted     bool       `json:"is_deleted"`
+	SyncID        string     `json:"sync_id,omitempty"`
+	Due           *Due       `json:"due,omitempty"`
 }
 
 // Due はタスクの期限を表す
 type Due struct {
-	String      string `json:"string"`
 	Date        string `json:"date"`
+	String      string `json:"string"`
+	Lang        string `json:"lang,omitempty"`
 	IsRecurring bool   `json:"is_recurring"`
-	Datetime    string `json:"datetime,omitempty"`
 	Timezone    string `json:"timezone,omitempty"`
-}
-
-// Duration はタスクの実行時間を表す
-type Duration struct {
-	Amount int    `json:"amount"`
-	Unit   string `json:"unit"`
-}
-
-// CreateTaskRequest はタスク作成リクエスト
-type CreateTaskRequest struct {
-	Content     string    `json:"content"`
-	Description string    `json:"description,omitempty"`
-	ProjectID   string    `json:"project_id,omitempty"`
-	SectionID   string    `json:"section_id,omitempty"`
-	ParentID    string    `json:"parent_id,omitempty"`
-	Order       int       `json:"order,omitempty"`
-	Labels      []string  `json:"labels,omitempty"`
-	Priority    int       `json:"priority,omitempty"`
-	DueString   string    `json:"due_string,omitempty"`
-	DueDate     string    `json:"due_date,omitempty"`
-	DueDatetime string    `json:"due_datetime,omitempty"`
-	DueLang     string    `json:"due_lang,omitempty"`
-	AssigneeID  string    `json:"assignee_id,omitempty"`
-	Duration    *Duration `json:"duration,omitempty"`
-}
-
-// UpdateTaskRequest はタスク更新リクエスト
-type UpdateTaskRequest struct {
-	Content     string    `json:"content,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Labels      []string  `json:"labels,omitempty"`
-	Priority    int       `json:"priority,omitempty"`
-	DueString   string    `json:"due_string,omitempty"`
-	DueDate     string    `json:"due_date,omitempty"`
-	DueDatetime string    `json:"due_datetime,omitempty"`
-	DueLang     string    `json:"due_lang,omitempty"`
-	AssigneeID  string    `json:"assignee_id,omitempty"`
-	Duration    *Duration `json:"duration,omitempty"`
 }
 
 // Project はTodoistのプロジェクトを表す
 type Project struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	CommentCount   int    `json:"comment_count"`
-	Order          int    `json:"order"`
-	Color          string `json:"color"`
-	IsShared       bool   `json:"is_shared"`
-	IsFavorite     bool   `json:"is_favorite"`
-	IsInboxProject bool   `json:"is_inbox_project"`
-	IsTeamInbox    bool   `json:"is_team_inbox"`
-	ViewStyle      string `json:"view_style"`
-	URL            string `json:"url"`
-	ParentID       string `json:"parent_id,omitempty"`
-}
-
-// CreateProjectRequest はプロジェクト作成リクエスト
-type CreateProjectRequest struct {
-	Name       string `json:"name"`
-	ParentID   string `json:"parent_id,omitempty"`
-	Color      string `json:"color,omitempty"`
-	IsFavorite bool   `json:"is_favorite,omitempty"`
-	ViewStyle  string `json:"view_style,omitempty"`
-}
-
-// UpdateProjectRequest はプロジェクト更新リクエスト
-type UpdateProjectRequest struct {
-	Name       string `json:"name,omitempty"`
-	Color      string `json:"color,omitempty"`
-	IsFavorite bool   `json:"is_favorite,omitempty"`
-	ViewStyle  string `json:"view_style,omitempty"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Color        int    `json:"color"`
+	ParentID     string `json:"parent_id,omitempty"`
+	ChildOrder   int    `json:"child_order"`
+	Collapsed    bool   `json:"collapsed"`
+	Shared       bool   `json:"shared"`
+	IsDeleted    bool   `json:"is_deleted"`
+	IsArchived   bool   `json:"is_archived"`
+	IsFavorite   bool   `json:"is_favorite"`
+	SyncID       string `json:"sync_id,omitempty"`
+	InboxProject bool   `json:"inbox_project"`
+	TeamInbox    bool   `json:"team_inbox"`
 }
 
 // Section はTodoistのセクションを表す
 type Section struct {
-	ID        string `json:"id"`
-	ProjectID string `json:"project_id"`
-	Order     int    `json:"order"`
-	Name      string `json:"name"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	ProjectID    string     `json:"project_id"`
+	SectionOrder int        `json:"section_order"`
+	Collapsed    bool       `json:"collapsed"`
+	SyncID       string     `json:"sync_id,omitempty"`
+	IsDeleted    bool       `json:"is_deleted"`
+	DateAdded    time.Time  `json:"date_added"`
+	DateArchived *time.Time `json:"date_archived,omitempty"`
 }
 
 // Label はTodoistのラベルを表す
 type Label struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
-	Color      string `json:"color"`
-	Order      int    `json:"order"`
+	Color      int    `json:"color"`
+	ItemOrder  int    `json:"item_order"`
+	IsDeleted  bool   `json:"is_deleted"`
 	IsFavorite bool   `json:"is_favorite"`
 }
 
-// Comment はTodoistのコメントを表す
-type Comment struct {
-	ID         string                 `json:"id"`
-	TaskID     string                 `json:"task_id,omitempty"`
-	ProjectID  string                 `json:"project_id,omitempty"`
-	PostedAt   time.Time              `json:"posted_at"`
-	Content    string                 `json:"content"`
-	Attachment map[string]interface{} `json:"attachment,omitempty"`
+// Note はTodoistのコメント・ノートを表す
+type Note struct {
+	ID             string                 `json:"id"`
+	PostedUID      string                 `json:"posted_uid"`
+	ProjectID      string                 `json:"project_id,omitempty"`
+	ItemID         string                 `json:"item_id,omitempty"`
+	Content        string                 `json:"content"`
+	FileAttachment map[string]interface{} `json:"file_attachment,omitempty"`
+	UidsToNotify   []string               `json:"uids_to_notify,omitempty"`
+	IsDeleted      bool                   `json:"is_deleted"`
+	Posted         time.Time              `json:"posted"`
+	Reactions      map[string]interface{} `json:"reactions,omitempty"`
 }
 
-// TaskFilters はタスク取得時のフィルター
-type TaskFilters struct {
-	ProjectID string
-	SectionID string
-	Label     string
-	Filter    string
-	Lang      string
-	IDs       []string
-}
+// ResourceTypes は同期するリソースタイプの定数
+const (
+	ResourceAll       = "all"
+	ResourceItems     = "items"
+	ResourceProjects  = "projects"
+	ResourceSections  = "sections"
+	ResourceLabels    = "labels"
+	ResourceNotes     = "notes"
+	ResourceFilters   = "filters"
+	ResourceReminders = "reminders"
+)
 
-// ProjectFilters はプロジェクト取得時のフィルター
-type ProjectFilters struct {
-	IDs []string
-}
+// Command types for Sync API
+const (
+	CommandItemAdd        = "item_add"
+	CommandItemUpdate     = "item_update"
+	CommandItemDelete     = "item_delete"
+	CommandItemComplete   = "item_complete"
+	CommandItemUncomplete = "item_uncomplete"
+	CommandItemMove       = "item_move"
+
+	CommandProjectAdd       = "project_add"
+	CommandProjectUpdate    = "project_update"
+	CommandProjectDelete    = "project_delete"
+	CommandProjectArchive   = "project_archive"
+	CommandProjectUnarchive = "project_unarchive"
+
+	CommandSectionAdd     = "section_add"
+	CommandSectionUpdate  = "section_update"
+	CommandSectionDelete  = "section_delete"
+	CommandSectionMove    = "section_move"
+	CommandSectionArchive = "section_archive"
+
+	CommandLabelAdd    = "label_add"
+	CommandLabelUpdate = "label_update"
+	CommandLabelDelete = "label_delete"
+
+	CommandNoteAdd    = "note_add"
+	CommandNoteUpdate = "note_update"
+	CommandNoteDelete = "note_delete"
+)

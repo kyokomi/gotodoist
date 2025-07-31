@@ -3,55 +3,27 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strings"
+
+	"github.com/google/uuid"
 )
 
-// GetProjects は全てのプロジェクトを取得する
-func (c *Client) GetProjects(ctx context.Context, filters *ProjectFilters) ([]Project, error) {
-	path := "/projects"
-
-	// IDsフィルタがある場合はクエリパラメータを追加
-	if filters != nil && len(filters.IDs) > 0 {
-		path += "?ids=" + strings.Join(filters.IDs, ",")
-	}
-
-	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var projects []Project
-	if err := c.do(req, &projects); err != nil {
-		return nil, fmt.Errorf("failed to get projects: %w", err)
-	}
-
-	return projects, nil
+// CreateProjectRequest はプロジェクト作成用のリクエスト構造体
+type CreateProjectRequest struct {
+	Name       string `json:"name"`
+	ParentID   string `json:"parent_id,omitempty"`
+	Color      int    `json:"color,omitempty"`
+	IsFavorite bool   `json:"is_favorite,omitempty"`
 }
 
-// GetProject は指定されたIDのプロジェクトを取得する
-func (c *Client) GetProject(ctx context.Context, projectID string) (*Project, error) {
-	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
-	}
-
-	path := "/projects/" + projectID
-
-	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var project Project
-	if err := c.do(req, &project); err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
-
-	return &project, nil
+// UpdateProjectRequest はプロジェクト更新用のリクエスト構造体
+type UpdateProjectRequest struct {
+	Name       string `json:"name,omitempty"`
+	Color      int    `json:"color,omitempty"`
+	IsFavorite bool   `json:"is_favorite,omitempty"`
 }
 
 // CreateProject は新しいプロジェクトを作成する
-func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (*Project, error) {
+func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (*SyncResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("create project request is required")
 	}
@@ -59,21 +31,36 @@ func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (
 		return nil, fmt.Errorf("project name is required")
 	}
 
-	httpReq, err := c.newRequest(ctx, http.MethodPost, "/projects", req)
-	if err != nil {
-		return nil, err
+	args := map[string]interface{}{
+		"name": req.Name,
 	}
 
-	var project Project
-	if err := c.do(httpReq, &project); err != nil {
-		return nil, fmt.Errorf("failed to create project: %w", err)
+	if req.ParentID != "" {
+		args["parent_id"] = req.ParentID
+	}
+	if req.Color > 0 {
+		args["color"] = req.Color
+	}
+	if req.IsFavorite {
+		args["is_favorite"] = req.IsFavorite
 	}
 
-	return &project, nil
+	cmd := Command{
+		Type: CommandProjectAdd,
+		UUID: uuid.New().String(),
+		Args: args,
+	}
+
+	request := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
+	}
+
+	return c.Sync(ctx, request)
 }
 
 // UpdateProject は既存のプロジェクトを更新する
-func (c *Client) UpdateProject(ctx context.Context, projectID string, req *UpdateProjectRequest) (*Project, error) {
+func (c *Client) UpdateProject(ctx context.Context, projectID string, req *UpdateProjectRequest) (*SyncResponse, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
@@ -81,129 +68,102 @@ func (c *Client) UpdateProject(ctx context.Context, projectID string, req *Updat
 		return nil, fmt.Errorf("update project request is required")
 	}
 
-	path := "/projects/" + projectID
+	args := map[string]interface{}{
+		"id": projectID,
+	}
 
-	httpReq, err := c.newRequest(ctx, http.MethodPost, path, req)
+	if req.Name != "" {
+		args["name"] = req.Name
+	}
+	if req.Color > 0 {
+		args["color"] = req.Color
+	}
+	args["is_favorite"] = req.IsFavorite
+
+	cmd := Command{
+		Type: CommandProjectUpdate,
+		UUID: uuid.New().String(),
+		Args: args,
+	}
+
+	request := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
+	}
+
+	return c.Sync(ctx, request)
+}
+
+// GetAllProjects は全てのプロジェクトを取得する
+func (c *Client) GetAllProjects(ctx context.Context) ([]Project, error) {
+	resp, err := c.GetProjects(ctx, "*")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get projects: %w", err)
 	}
 
-	var project Project
-	if err := c.do(httpReq, &project); err != nil {
-		return nil, fmt.Errorf("failed to update project: %w", err)
+	// アクティブなプロジェクトのみを返す
+	var activeProjects []Project
+	for _, project := range resp.Projects {
+		if !project.IsDeleted {
+			activeProjects = append(activeProjects, project)
+		}
 	}
 
-	return &project, nil
+	return activeProjects, nil
 }
 
 // DeleteProject はプロジェクトを削除する
-func (c *Client) DeleteProject(ctx context.Context, projectID string) error {
-	if projectID == "" {
-		return fmt.Errorf("project ID is required")
-	}
-
-	path := "/projects/" + projectID
-
-	req, err := c.newRequest(ctx, http.MethodDelete, path, nil)
-	if err != nil {
-		return err
-	}
-
-	if err := c.do(req, nil); err != nil {
-		return fmt.Errorf("failed to delete project: %w", err)
-	}
-
-	return nil
+func (c *Client) DeleteProject(ctx context.Context, projectID string) (*SyncResponse, error) {
+	return c.DeleteProjectSync(ctx, projectID)
 }
 
-// GetProjectTasks は指定されたプロジェクトのタスクを取得する
-func (c *Client) GetProjectTasks(ctx context.Context, projectID string) ([]Task, error) {
+// ArchiveProject はプロジェクトをアーカイブする
+func (c *Client) ArchiveProject(ctx context.Context, projectID string) (*SyncResponse, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
 
-	filters := &TaskFilters{
-		ProjectID: projectID,
+	cmd := Command{
+		Type: CommandProjectArchive,
+		UUID: uuid.New().String(),
+		Args: map[string]interface{}{
+			"id": projectID,
+		},
 	}
 
-	return c.GetTasks(ctx, filters)
+	request := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
+	}
+
+	return c.Sync(ctx, request)
 }
 
-// GetProjectComments はプロジェクトのコメントを取得する
-func (c *Client) GetProjectComments(ctx context.Context, projectID string) ([]Comment, error) {
+// UnarchiveProject はプロジェクトのアーカイブを解除する
+func (c *Client) UnarchiveProject(ctx context.Context, projectID string) (*SyncResponse, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
 
-	path := "/comments?project_id=" + projectID
-
-	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
+	cmd := Command{
+		Type: CommandProjectUnarchive,
+		UUID: uuid.New().String(),
+		Args: map[string]interface{}{
+			"id": projectID,
+		},
 	}
 
-	var comments []Comment
-	if err := c.do(req, &comments); err != nil {
-		return nil, fmt.Errorf("failed to get project comments: %w", err)
+	request := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
 	}
 
-	return comments, nil
+	return c.Sync(ctx, request)
 }
-
-// GetProjectSections はプロジェクトのセクションを取得する
-func (c *Client) GetProjectSections(ctx context.Context, projectID string) ([]Section, error) {
-	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
-	}
-
-	path := "/sections?project_id=" + projectID
-
-	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var sections []Section
-	if err := c.do(req, &sections); err != nil {
-		return nil, fmt.Errorf("failed to get project sections: %w", err)
-	}
-
-	return sections, nil
-}
-
-// Project colors (Todoist API で利用可能な色)
-const (
-	ColorBerryRed   = "berry_red"
-	ColorRed        = "red"
-	ColorOrange     = "orange"
-	ColorYellow     = "yellow"
-	ColorOliveGreen = "olive_green"
-	ColorLimeGreen  = "lime_green"
-	ColorGreen      = "green"
-	ColorMintGreen  = "mint_green"
-	ColorTeal       = "teal"
-	ColorSkyBlue    = "sky_blue"
-	ColorLightBlue  = "light_blue"
-	ColorBlue       = "blue"
-	ColorGrape      = "grape"
-	ColorViolet     = "violet"
-	ColorLavender   = "lavender"
-	ColorMagenta    = "magenta"
-	ColorSalmon     = "salmon"
-	ColorCharcoal   = "charcoal"
-	ColorGrey       = "grey"
-	ColorTaupe      = "taupe"
-)
-
-// View styles
-const (
-	ViewStyleList  = "list"
-	ViewStyleBoard = "board"
-)
 
 // GetFavoriteProjects はお気に入りプロジェクトを取得する
 func (c *Client) GetFavoriteProjects(ctx context.Context) ([]Project, error) {
-	projects, err := c.GetProjects(ctx, nil)
+	projects, err := c.GetAllProjects(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -220,17 +180,41 @@ func (c *Client) GetFavoriteProjects(ctx context.Context) ([]Project, error) {
 
 // GetSharedProjects は共有プロジェクトを取得する
 func (c *Client) GetSharedProjects(ctx context.Context) ([]Project, error) {
-	projects, err := c.GetProjects(ctx, nil)
+	projects, err := c.GetAllProjects(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var shared []Project
 	for _, project := range projects {
-		if project.IsShared {
+		if project.Shared {
 			shared = append(shared, project)
 		}
 	}
 
 	return shared, nil
 }
+
+// Project colors (Todoist API で利用可能な色)
+const (
+	ColorBerryRed   = 30
+	ColorRed        = 31
+	ColorOrange     = 32
+	ColorYellow     = 33
+	ColorOliveGreen = 34
+	ColorLimeGreen  = 35
+	ColorGreen      = 36
+	ColorMintGreen  = 37
+	ColorTeal       = 38
+	ColorSkyBlue    = 39
+	ColorLightBlue  = 40
+	ColorBlue       = 41
+	ColorGrape      = 42
+	ColorViolet     = 43
+	ColorLavender   = 44
+	ColorMagenta    = 45
+	ColorSalmon     = 46
+	ColorCharcoal   = 47
+	ColorGrey       = 48
+	ColorTaupe      = 49
+)
