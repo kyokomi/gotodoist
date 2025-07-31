@@ -171,12 +171,6 @@ func (c *Client) GetProjectSections(ctx context.Context, projectID string) ([]Se
 	return sections, nil
 }
 
-// ArchiveProject はプロジェクトをアーカイブする（削除の代替手段）
-// 注意: Todoist APIにはarchive機能がないため、これは削除を行う
-func (c *Client) ArchiveProject(ctx context.Context, projectID string) error {
-	return c.DeleteProject(ctx, projectID)
-}
-
 // Project colors (Todoist API で利用可能な色)
 const (
 	ColorBerryRed   = "berry_red"

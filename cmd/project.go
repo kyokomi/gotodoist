@@ -64,26 +64,12 @@ var projectDeleteCmd = &cobra.Command{
 	},
 }
 
-// projectArchiveCmd はプロジェクトアーカイブコマンド
-var projectArchiveCmd = &cobra.Command{
-	Use:   "archive [project ID]",
-	Short: "Archive a project",
-	Long:  `Archive a project in your Todoist.`,
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: APIクライアント実装後に実際の処理を追加
-		projectID := args[0]
-		fmt.Printf("Archiving project: %s\n", projectID)
-	},
-}
-
 func init() {
 	// サブコマンドを追加
 	projectCmd.AddCommand(projectListCmd)
 	projectCmd.AddCommand(projectAddCmd)
 	projectCmd.AddCommand(projectUpdateCmd)
 	projectCmd.AddCommand(projectDeleteCmd)
-	projectCmd.AddCommand(projectArchiveCmd)
 
 	// プロジェクトコマンドをルートコマンドに追加
 	rootCmd.AddCommand(projectCmd)

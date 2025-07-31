@@ -228,22 +228,45 @@ func (c *Client) GetTaskComments(ctx context.Context, taskID string) ([]Comment,
 	return comments, nil
 }
 
+// Priority はタスクの優先度を表す型
+type Priority int
+
 // Priority constants for tasks
 const (
-	PriorityNormal   = 1
-	PriorityHigh     = 2
-	PriorityVeryHigh = 3
-	PriorityUrgent   = 4
+	PriorityNormal   Priority = 1
+	PriorityHigh     Priority = 2
+	PriorityVeryHigh Priority = 3
+	PriorityUrgent   Priority = 4
 )
 
+// String はPriorityの文字列表現を返す
+func (p Priority) String() string {
+	switch p {
+	case PriorityNormal:
+		return "Normal"
+	case PriorityHigh:
+		return "High"
+	case PriorityVeryHigh:
+		return "Very High"
+	case PriorityUrgent:
+		return "Urgent"
+	default:
+		return fmt.Sprintf("Priority(%d)", int(p))
+	}
+}
+
+// IsValid はPriorityが有効な値かどうかを判定する
+func (p Priority) IsValid() bool {
+	return p >= PriorityNormal && p <= PriorityUrgent
+}
+
 // GetTasksByPriority は指定された優先度のタスクを取得する
-func (c *Client) GetTasksByPriority(ctx context.Context, priority int) ([]Task, error) {
-	if priority < PriorityNormal || priority > PriorityUrgent {
-		return nil, fmt.Errorf("invalid priority: %d (must be between %d and %d)",
-			priority, PriorityNormal, PriorityUrgent)
+func (c *Client) GetTasksByPriority(ctx context.Context, priority Priority) ([]Task, error) {
+	if !priority.IsValid() {
+		return nil, fmt.Errorf("invalid priority: %s", priority.String())
 	}
 
-	filter := fmt.Sprintf("p%d", priority)
+	filter := fmt.Sprintf("p%d", int(priority))
 	filters := &TaskFilters{
 		Filter: filter,
 	}

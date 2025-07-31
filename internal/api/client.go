@@ -14,10 +14,10 @@ import (
 
 // デフォルト設定
 const (
-	DefaultBaseURL = "https://api.todoist.com/rest/v2"
+	DefaultBaseURL = "https://api.todoist.com/rest/v1"
 	DefaultTimeout = 30 * time.Second
 	UserAgent      = "gotodoist/dev"
-	
+
 	// HTTPステータスコード
 	httpStatusBadRequest = 400
 )
