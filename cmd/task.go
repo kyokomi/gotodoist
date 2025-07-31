@@ -42,15 +42,12 @@ var taskAddCmd = &cobra.Command{
 
 // taskUpdateCmd はタスク更新コマンド
 var taskUpdateCmd = &cobra.Command{
-	Use:   "update [task ID] [new content]",
+	Use:   "update [task ID]",
 	Short: "Update an existing task",
 	Long:  `Update the content of an existing task.`,
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: APIクライアント実装後に実際の処理を追加
-		taskID := args[0]
-		newContent := args[1]
-		fmt.Printf("Updating task %s: %s\n", taskID, newContent)
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runTaskUpdate(cmd, args)
 	},
 }
 
@@ -60,10 +57,8 @@ var taskDeleteCmd = &cobra.Command{
 	Short: "Delete a task",
 	Long:  `Delete a task from your Todoist.`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: APIクライアント実装後に実際の処理を追加
-		taskID := args[0]
-		fmt.Printf("Deleting task: %s\n", taskID)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runTaskDelete(cmd, args)
 	},
 }
 
@@ -274,6 +269,122 @@ func runTaskComplete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// runTaskDelete はタスク削除の実際の処理
+func runTaskDelete(cmd *cobra.Command, args []string) error {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	client, err := cfg.NewAPIClient()
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	ctx := context.Background()
+	taskID := args[0]
+
+	// 確認フラグをチェック
+	force, _ := cmd.Flags().GetBool("force")
+	if !force {
+		fmt.Printf("⚠️  Are you sure you want to delete task %s? (y/N): ", taskID)
+		var confirmation string
+		fmt.Scanln(&confirmation)
+		if confirmation != "y" && confirmation != "Y" {
+			fmt.Println("❌ Task deletion cancelled")
+			return nil
+		}
+	}
+
+	// タスクを削除する
+	resp, err := client.DeleteTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	fmt.Printf("🗑️  Task deleted successfully!\n")
+	if verbose {
+		fmt.Printf("Sync token: %s\n", resp.SyncToken)
+	}
+
+	return nil
+}
+
+// runTaskUpdate はタスク更新の実際の処理
+func runTaskUpdate(cmd *cobra.Command, args []string) error {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	client, err := cfg.NewAPIClient()
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	ctx := context.Background()
+	taskID := args[0]
+
+	// フラグから設定を取得
+	content, _ := cmd.Flags().GetString("content")
+	priorityStr, _ := cmd.Flags().GetString("priority")
+	dueDate, _ := cmd.Flags().GetString("due")
+	description, _ := cmd.Flags().GetString("description")
+	labelsStr, _ := cmd.Flags().GetString("labels")
+
+	// 何も更新内容がない場合はエラー
+	if content == "" && priorityStr == "" && dueDate == "" && description == "" && labelsStr == "" {
+		return fmt.Errorf("at least one update field must be specified (--content, --priority, --due, --description, --labels)")
+	}
+
+	// リクエストを構築
+	req := &api.UpdateTaskRequest{}
+
+	if content != "" {
+		req.Content = content
+	}
+
+	if description != "" {
+		req.Description = description
+	}
+
+	if priorityStr != "" {
+		priority, err := strconv.Atoi(priorityStr)
+		if err != nil {
+			return fmt.Errorf("invalid priority: %s", priorityStr)
+		}
+		if priority < 1 || priority > 4 {
+			return fmt.Errorf("priority must be between 1 and 4")
+		}
+		req.Priority = priority
+	}
+
+	if dueDate != "" {
+		req.DueString = dueDate
+	}
+
+	if labelsStr != "" {
+		labels := strings.Split(labelsStr, ",")
+		for i, label := range labels {
+			labels[i] = strings.TrimSpace(label)
+		}
+		req.Labels = labels
+	}
+
+	// タスクを更新
+	resp, err := client.UpdateTask(ctx, taskID, req)
+	if err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	fmt.Printf("✏️  Task updated successfully!\n")
+	if verbose {
+		fmt.Printf("Sync token: %s\n", resp.SyncToken)
+	}
+
+	return nil
+}
+
 func init() {
 	// サブコマンドを追加
 	taskCmd.AddCommand(taskListCmd)
@@ -296,4 +407,14 @@ func init() {
 	taskAddCmd.Flags().StringP("due", "d", "", "due date (e.g., 'today', 'tomorrow', '2024-12-25')")
 	taskAddCmd.Flags().StringP("description", "D", "", "task description")
 	taskAddCmd.Flags().StringP("labels", "l", "", "comma-separated labels")
+
+	// task update用のフラグ
+	taskUpdateCmd.Flags().StringP("content", "c", "", "new task content")
+	taskUpdateCmd.Flags().StringP("priority", "P", "", "task priority (1-4)")
+	taskUpdateCmd.Flags().StringP("due", "d", "", "due date (e.g., 'today', 'tomorrow', '2024-12-25')")
+	taskUpdateCmd.Flags().StringP("description", "D", "", "task description")
+	taskUpdateCmd.Flags().StringP("labels", "l", "", "comma-separated labels")
+
+	// task delete用のフラグ
+	taskDeleteCmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
 }
