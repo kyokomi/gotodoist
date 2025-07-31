@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -13,15 +14,15 @@ type SyncRequest struct {
 
 // SyncResponse はSync APIのレスポンス構造体
 type SyncResponse struct {
-	SyncToken     string            `json:"sync_token"`
-	FullSync      bool              `json:"full_sync"`
-	Items         []Item            `json:"items,omitempty"`
-	Projects      []Project         `json:"projects,omitempty"`
-	Sections      []Section         `json:"sections,omitempty"`
-	Labels        []Label           `json:"labels,omitempty"`
-	Notes         []Note            `json:"notes,omitempty"`
-	TempIDMapping map[string]string `json:"temp_id_mapping,omitempty"`
-	SyncStatus    map[string]string `json:"sync_status,omitempty"`
+	SyncToken     string                 `json:"sync_token"`
+	FullSync      bool                   `json:"full_sync"`
+	Items         []Item                 `json:"items,omitempty"`
+	Projects      []Project              `json:"projects,omitempty"`
+	Sections      []Section              `json:"sections,omitempty"`
+	Labels        []Label                `json:"labels,omitempty"`
+	Notes         []Note                 `json:"notes,omitempty"`
+	TempIDMapping map[string]string      `json:"temp_id_mapping,omitempty"`
+	SyncStatus    map[string]interface{} `json:"sync_status,omitempty"`
 }
 
 // Command はSync APIのコマンド構造体
@@ -34,25 +35,25 @@ type Command struct {
 
 // Item はTodoistのタスク（アイテム）を表す
 type Item struct {
-	ID            string     `json:"id"`
-	UserID        string     `json:"user_id"`
-	ProjectID     string     `json:"project_id"`
-	SectionID     string     `json:"section_id,omitempty"`
-	Content       string     `json:"content"`
-	Description   string     `json:"description,omitempty"`
-	Priority      int        `json:"priority"`
-	ParentID      string     `json:"parent_id,omitempty"`
-	ChildOrder    int        `json:"child_order"`
-	DayOrder      int        `json:"day_order"`
-	Collapsed     bool       `json:"collapsed"`
-	Labels        []string   `json:"labels,omitempty"`
-	AssignedBy    string     `json:"assigned_by,omitempty"`
-	Responsible   string     `json:"responsible,omitempty"`
-	DateAdded     time.Time  `json:"date_added"`
-	DateCompleted *time.Time `json:"date_completed,omitempty"`
-	IsDeleted     bool       `json:"is_deleted"`
-	SyncID        string     `json:"sync_id,omitempty"`
-	Due           *Due       `json:"due,omitempty"`
+	ID             string       `json:"id"`
+	UserID         string       `json:"user_id"`
+	ProjectID      string       `json:"project_id"`
+	SectionID      string       `json:"section_id,omitempty"`
+	Content        string       `json:"content"`
+	Description    string       `json:"description,omitempty"`
+	Priority       int          `json:"priority"`
+	ParentID       string       `json:"parent_id,omitempty"`
+	ChildOrder     int          `json:"child_order"`
+	DayOrder       int          `json:"day_order"`
+	Collapsed      bool         `json:"is_collapsed"`
+	Labels         []string     `json:"labels,omitempty"`
+	AssignedByUID  string       `json:"assigned_by_uid,omitempty"`
+	ResponsibleUID string       `json:"responsible_uid,omitempty"`
+	DateAdded      TodoistTime  `json:"added_at"`
+	DateCompleted  *TodoistTime `json:"completed_at,omitempty"`
+	IsDeleted      bool         `json:"is_deleted"`
+	SyncID         string       `json:"sync_id,omitempty"`
+	Due            *Due         `json:"due,omitempty"`
 }
 
 // Due はタスクの期限を表す
@@ -83,15 +84,15 @@ type Project struct {
 
 // Section はTodoistのセクションを表す
 type Section struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	ProjectID    string     `json:"project_id"`
-	SectionOrder int        `json:"section_order"`
-	Collapsed    bool       `json:"collapsed"`
-	SyncID       string     `json:"sync_id,omitempty"`
-	IsDeleted    bool       `json:"is_deleted"`
-	DateAdded    time.Time  `json:"date_added"`
-	DateArchived *time.Time `json:"date_archived,omitempty"`
+	ID           string       `json:"id"`
+	Name         string       `json:"name"`
+	ProjectID    string       `json:"project_id"`
+	SectionOrder int          `json:"section_order"`
+	Collapsed    bool         `json:"collapsed"`
+	SyncID       string       `json:"sync_id,omitempty"`
+	IsDeleted    bool         `json:"is_deleted"`
+	DateAdded    TodoistTime  `json:"date_added"`
+	DateArchived *TodoistTime `json:"date_archived,omitempty"`
 }
 
 // Label はTodoistのラベルを表す
@@ -114,7 +115,7 @@ type Note struct {
 	FileAttachment map[string]interface{} `json:"file_attachment,omitempty"`
 	UidsToNotify   []string               `json:"uids_to_notify,omitempty"`
 	IsDeleted      bool                   `json:"is_deleted"`
-	Posted         time.Time              `json:"posted"`
+	Posted         TodoistTime            `json:"posted"`
 	Reactions      map[string]interface{} `json:"reactions,omitempty"`
 }
 
@@ -159,3 +160,52 @@ const (
 	CommandNoteUpdate = "note_update"
 	CommandNoteDelete = "note_delete"
 )
+
+// TodoistTime はTodoist APIの日時形式を扱うカスタム型
+type TodoistTime struct {
+	time.Time
+}
+
+// UnmarshalJSON はJSONから日時をパースする
+func (t *TodoistTime) UnmarshalJSON(data []byte) error {
+	// nullの場合の処理
+	if string(data) == "null" {
+		*t = TodoistTime{} // ゼロ値にセット
+		return nil
+	}
+
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+
+	if str == "" {
+		return nil
+	}
+
+	// Todoistの日時形式をパース
+	formats := []string{
+		"2006-01-02T15:04:05.000000Z",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05",
+		time.RFC3339,
+		time.RFC3339Nano,
+	}
+
+	for _, format := range formats {
+		if parsedTime, err := time.Parse(format, str); err == nil {
+			*t = TodoistTime{parsedTime}
+			return nil
+		}
+	}
+
+	return nil // パースに失敗してもエラーにしない
+}
+
+// MarshalJSON は日時をJSONに変換する
+func (t TodoistTime) MarshalJSON() ([]byte, error) {
+	if t.IsZero() {
+		return json.Marshal("")
+	}
+	return json.Marshal(t.Format(time.RFC3339))
+}
