@@ -45,10 +45,13 @@ func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (
 		args["is_favorite"] = req.IsFavorite
 	}
 
+	tempID := uuid.New().String()
+	args["temp_id"] = tempID
 	cmd := Command{
-		Type: CommandProjectAdd,
-		UUID: uuid.New().String(),
-		Args: args,
+		Type:   CommandProjectAdd,
+		UUID:   uuid.New().String(),
+		TempID: tempID,
+		Args:   args,
 	}
 
 	request := &SyncRequest{
