@@ -43,19 +43,15 @@ func TestRootCommandFlags(t *testing.T) {
 	debugFlag := rootCmd.PersistentFlags().Lookup("debug")
 	if debugFlag == nil {
 		t.Error("expected debug flag to be defined")
-	} else {
-		if debugFlag.Usage != "enable debug mode" {
-			t.Errorf("expected debug flag usage to be 'enable debug mode', got %s", debugFlag.Usage)
-		}
+	} else if debugFlag.Usage != "enable debug mode" {
+		t.Errorf("expected debug flag usage to be 'enable debug mode', got %s", debugFlag.Usage)
 	}
 
 	langFlag := rootCmd.PersistentFlags().Lookup("lang")
 	if langFlag == nil {
 		t.Error("expected lang flag to be defined")
-	} else {
-		if langFlag.Usage != "language preference (en/ja)" {
-			t.Errorf("expected lang flag usage to be 'language preference (en/ja)', got %s", langFlag.Usage)
-		}
+	} else if langFlag.Usage != "language preference (en/ja)" {
+		t.Errorf("expected lang flag usage to be 'language preference (en/ja)', got %s", langFlag.Usage)
 	}
 }
 
@@ -121,7 +117,7 @@ func toLower(s string) string {
 
 // Simple contains implementation for testing
 func contains(s, substr string) bool {
-	if len(substr) == 0 {
+	if substr == "" {
 		return true
 	}
 	if len(substr) > len(s) {

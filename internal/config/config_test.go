@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const expectedBaseURL = "https://api.todoist.com/api/v1"
+
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
 
@@ -13,8 +15,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Fatal("DefaultConfig() returned nil")
 	}
 
-	if config.BaseURL != "https://api.todoist.com/api/v1" {
-		t.Errorf("expected BaseURL to be https://api.todoist.com/api/v1, got %s", config.BaseURL)
+	if config.BaseURL != expectedBaseURL {
+		t.Errorf("expected BaseURL to be %s, got %s", expectedBaseURL, config.BaseURL)
 	}
 
 	if config.APIToken != "" {
@@ -48,17 +50,17 @@ func TestLoadConfig(t *testing.T) {
 			oldToken := os.Getenv("TODOIST_API_TOKEN")
 			defer func() {
 				if oldToken != "" {
-					os.Setenv("TODOIST_API_TOKEN", oldToken)
+					_ = os.Setenv("TODOIST_API_TOKEN", oldToken)
 				} else {
-					os.Unsetenv("TODOIST_API_TOKEN")
+					_ = os.Unsetenv("TODOIST_API_TOKEN")
 				}
 			}()
 
 			// テスト用の環境変数を設定
 			if tt.envToken != "" {
-				os.Setenv("TODOIST_API_TOKEN", tt.envToken)
+				_ = os.Setenv("TODOIST_API_TOKEN", tt.envToken)
 			} else {
-				os.Unsetenv("TODOIST_API_TOKEN")
+				_ = os.Unsetenv("TODOIST_API_TOKEN")
 			}
 
 			config, err := LoadConfig()
@@ -83,8 +85,8 @@ func TestLoadConfig(t *testing.T) {
 				t.Errorf("expected APIToken %s, got %s", tt.wantToken, config.APIToken)
 			}
 
-			if config.BaseURL != "https://api.todoist.com/api/v1" {
-				t.Errorf("expected BaseURL to be https://api.todoist.com/api/v1, got %s", config.BaseURL)
+			if config.BaseURL != expectedBaseURL {
+				t.Errorf("expected BaseURL to be %s, got %s", expectedBaseURL, config.BaseURL)
 			}
 		})
 	}

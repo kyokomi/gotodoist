@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -427,106 +428,50 @@ func TestUnarchiveProject(t *testing.T) {
 }
 
 func TestGetFavoriteProjects(t *testing.T) {
-	response := `{
-		"sync_token": "test-sync-token",
-		"full_sync": true,
-		"projects": [
-			{
-				"id": "project-1",
-				"name": "Favorite Project",
-				"color": "blue",
-				"is_deleted": false,
-				"is_archived": false,
-				"is_favorite": true,
-				"shared": false,
-				"inbox_project": false,
-				"team_inbox": false,
-				"child_order": 1
-			},
-			{
-				"id": "project-2",
-				"name": "Regular Project",
-				"color": "red",
-				"is_deleted": false,
-				"is_archived": false,
-				"is_favorite": false,
-				"shared": false,
-				"inbox_project": false,
-				"team_inbox": false,
-				"child_order": 2
-			}
-		]
-	}`
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
-	defer server.Close()
-
-	client, err := NewClient("test-token")
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
-	if err := client.SetBaseURL(server.URL); err != nil {
-		t.Fatalf("failed to set base URL: %v", err)
-	}
-
-	ctx := context.Background()
-	projects, err := client.GetFavoriteProjects(ctx)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-
-	// お気に入りプロジェクトのみが返されるべき
-	if len(projects) != 1 {
-		t.Errorf("expected 1 favorite project, got %d", len(projects))
-		return
-	}
-
-	if projects[0].ID != "project-1" {
-		t.Errorf("expected project ID 'project-1', got %s", projects[0].ID)
-	}
-
-	if !projects[0].IsFavorite {
-		t.Error("expected project to be favorite")
-	}
+	testFilteredProjects(t, "favorite", true, false, func(client *Client, ctx context.Context) ([]Project, error) {
+		return client.GetFavoriteProjects(ctx)
+	})
 }
 
 func TestGetSharedProjects(t *testing.T) {
-	response := `{
+	testFilteredProjects(t, "shared", false, true, func(client *Client, ctx context.Context) ([]Project, error) {
+		return client.GetSharedProjects(ctx)
+	})
+}
+
+// Helper function to test filtered projects
+func testFilteredProjects(t *testing.T, filterType string, isFavorite, isShared bool,
+	getFunc func(*Client, context.Context) ([]Project, error)) {
+	response := fmt.Sprintf(`{
 		"sync_token": "test-sync-token",
 		"full_sync": true,
 		"projects": [
 			{
 				"id": "project-1",
-				"name": "Shared Project",
+				"name": "%s Project",
 				"color": "blue",
 				"is_deleted": false,
 				"is_archived": false,
-				"is_favorite": false,
-				"shared": true,
+				"is_favorite": %t,
+				"shared": %t,
 				"inbox_project": false,
 				"team_inbox": false,
 				"child_order": 1
 			},
 			{
 				"id": "project-2",
-				"name": "Private Project",
+				"name": "Other Project", 
 				"color": "red",
 				"is_deleted": false,
 				"is_archived": false,
-				"is_favorite": false,
-				"shared": false,
+				"is_favorite": %t,
+				"shared": %t,
 				"inbox_project": false,
 				"team_inbox": false,
 				"child_order": 2
 			}
 		]
-	}`
+	}`, filterType, isFavorite, isShared, !isFavorite, !isShared)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -545,15 +490,14 @@ func TestGetSharedProjects(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	projects, err := client.GetSharedProjects(ctx)
+	projects, err := getFunc(client, ctx)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
 	}
 
-	// 共有プロジェクトのみが返されるべき
 	if len(projects) != 1 {
-		t.Errorf("expected 1 shared project, got %d", len(projects))
+		t.Errorf("expected 1 %s project, got %d", filterType, len(projects))
 		return
 	}
 
@@ -561,7 +505,11 @@ func TestGetSharedProjects(t *testing.T) {
 		t.Errorf("expected project ID 'project-1', got %s", projects[0].ID)
 	}
 
-	if !projects[0].Shared {
+	if isFavorite && !projects[0].IsFavorite {
+		t.Error("expected project to be favorite")
+	}
+
+	if isShared && !projects[0].Shared {
 		t.Error("expected project to be shared")
 	}
 }
