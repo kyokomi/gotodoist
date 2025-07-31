@@ -4,9 +4,11 @@ import (
 	"testing"
 )
 
+const cmdVersion = "version"
+
 func TestVersionCommandDefinition(t *testing.T) {
-	if versionCmd.Use != "version" {
-		t.Errorf("expected Use to be 'version', got %s", versionCmd.Use)
+	if versionCmd.Use != cmdVersion {
+		t.Errorf("expected Use to be '%s', got %s", cmdVersion, versionCmd.Use)
 	}
 
 	if versionCmd.Short != "Print version information" {
@@ -42,7 +44,7 @@ func TestVersionCommand_Integration(t *testing.T) {
 	// versionコマンドがrootコマンドに追加されているかテスト
 	found := false
 	for _, cmd := range rootCmd.Commands() {
-		if cmd.Use == "version" {
+		if cmd.Use == cmdVersion {
 			found = true
 			break
 		}

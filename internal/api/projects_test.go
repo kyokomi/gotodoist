@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/kyokomi/gotodoist/internal/testhelper"
 )
 
 func TestCreateProject(t *testing.T) {
@@ -19,14 +20,14 @@ func TestCreateProject(t *testing.T) {
 			name: "valid request",
 			req: &CreateProjectRequest{
 				Name:       "Test Project",
-				Color:      "blue",
+				Color:      testhelper.TestColorBlue,
 				IsFavorite: true,
 			},
-			response: `{
-				"sync_token": "test-sync-token",
+			response: fmt.Sprintf(`{
+				"sync_token": "%s",
 				"full_sync": false,
 				"temp_id_mapping": {"temp-123": "real-123"}
-			}`,
+			}`, testhelper.TestSyncToken),
 			wantError: false,
 		},
 		{
@@ -45,24 +46,20 @@ func TestCreateProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
 				if tt.wantError && tt.req != nil && tt.req.Name == "" {
-					w.WriteHeader(http.StatusBadRequest)
-					w.Write([]byte(`{"error": "Name is required"}`))
+					testhelper.ErrorResponse(t, w, http.StatusBadRequest, "Name is required")
 					return
 				}
 
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.response))
-			}))
+				testhelper.JSONResponse(t, w, http.StatusOK, tt.response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -87,8 +84,8 @@ func TestCreateProject(t *testing.T) {
 				return
 			}
 
-			if resp.SyncToken != "test-sync-token" {
-				t.Errorf("expected sync token 'test-sync-token', got %s", resp.SyncToken)
+			if resp.SyncToken != testhelper.TestSyncToken {
+				t.Errorf("expected sync token '%s', got %s", testhelper.TestSyncToken, resp.SyncToken)
 			}
 		})
 	}
@@ -132,18 +129,15 @@ func TestUpdateProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, tt.response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -176,9 +170,9 @@ func TestGetAllProjects(t *testing.T) {
 		"full_sync": true,
 		"projects": [
 			{
-				"id": "project-1",
+				"id": testhelper.TestProjectID,
 				"name": "Project 1",
-				"color": "blue",
+				"color": testhelper.TestColorBlue,
 				"is_deleted": false,
 				"is_archived": false,
 				"is_favorite": true,
@@ -202,11 +196,9 @@ func TestGetAllProjects(t *testing.T) {
 		]
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
 	client, err := NewClient("test-token")
@@ -231,7 +223,7 @@ func TestGetAllProjects(t *testing.T) {
 		return
 	}
 
-	if projects[0].ID != "project-1" {
+	if projects[0].ID != testhelper.TestProjectID {
 		t.Errorf("expected project ID 'project-1', got %s", projects[0].ID)
 	}
 
@@ -239,7 +231,7 @@ func TestGetAllProjects(t *testing.T) {
 		t.Errorf("expected project name 'Project 1', got %s", projects[0].Name)
 	}
 
-	if projects[0].Color != "blue" {
+	if projects[0].Color != testhelper.TestColorBlue {
 		t.Errorf("expected color 'blue', got %s", projects[0].Color)
 	}
 
@@ -253,23 +245,17 @@ func TestGetAllProjects(t *testing.T) {
 }
 
 func TestDeleteProject(t *testing.T) {
-	response := `{
-		"sync_token": "test-sync-token-delete",
-		"full_sync": false
-	}`
+	response := testhelper.DeleteSyncResponse
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
@@ -286,8 +272,8 @@ func TestDeleteProject(t *testing.T) {
 		return
 	}
 
-	if resp.SyncToken != "test-sync-token-delete" {
-		t.Errorf("expected sync token 'test-sync-token-delete', got %s", resp.SyncToken)
+	if resp.SyncToken != testhelper.TestSyncTokenDelete {
+		t.Errorf("expected sync token '%s', got %s", testhelper.TestSyncTokenDelete, resp.SyncToken)
 	}
 }
 
@@ -316,18 +302,15 @@ func TestArchiveProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -384,18 +367,15 @@ func TestUnarchiveProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -447,9 +427,9 @@ func testFilteredProjects(t *testing.T, filterType string, isFavorite, isShared 
 		"full_sync": true,
 		"projects": [
 			{
-				"id": "project-1",
+				"id": testhelper.TestProjectID,
 				"name": "%s Project",
-				"color": "blue",
+				"color": testhelper.TestColorBlue,
 				"is_deleted": false,
 				"is_archived": false,
 				"is_favorite": %t,
@@ -473,11 +453,9 @@ func testFilteredProjects(t *testing.T, filterType string, isFavorite, isShared 
 		]
 	}`, filterType, isFavorite, isShared, !isFavorite, !isShared)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
 	client, err := NewClient("test-token")
@@ -501,7 +479,7 @@ func testFilteredProjects(t *testing.T, filterType string, isFavorite, isShared 
 		return
 	}
 
-	if projects[0].ID != "project-1" {
+	if projects[0].ID != testhelper.TestProjectID {
 		t.Errorf("expected project ID 'project-1', got %s", projects[0].ID)
 	}
 

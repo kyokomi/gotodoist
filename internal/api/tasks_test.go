@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/kyokomi/gotodoist/internal/testhelper"
 )
 
 func TestCreateTask(t *testing.T) {
@@ -23,7 +25,7 @@ func TestCreateTask(t *testing.T) {
 				Priority:    2,
 			},
 			response: `{
-				"sync_token": "test-sync-token",
+				"sync_token": testhelper.TestSyncToken,
 				"full_sync": false,
 				"temp_id_mapping": {"temp-123": "real-123"}
 			}`,
@@ -46,25 +48,21 @@ func TestCreateTask(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// テスト用HTTPサーバーを作成
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
 				if tt.wantError && tt.req != nil && tt.req.Content == "" {
 					// 400エラーを返す
-					w.WriteHeader(http.StatusBadRequest)
-					w.Write([]byte(`{"error": "Content is required"}`))
+					testhelper.ErrorResponse(t, w, http.StatusBadRequest, "Content is required")
 					return
 				}
 
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.response))
-			}))
+				testhelper.JSONResponse(t, w, http.StatusOK, tt.response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -89,7 +87,7 @@ func TestCreateTask(t *testing.T) {
 				return
 			}
 
-			if resp.SyncToken != "test-sync-token" {
+			if resp.SyncToken != testhelper.TestSyncToken {
 				t.Errorf("expected sync token 'test-sync-token', got %s", resp.SyncToken)
 			}
 		})
@@ -106,7 +104,7 @@ func TestUpdateTask(t *testing.T) {
 	}{
 		{
 			name:   "valid request",
-			taskID: "task-123",
+			taskID: testhelper.TestTaskID,
 			req: &UpdateTaskRequest{
 				Content:  "Updated task",
 				Priority: 3,
@@ -125,7 +123,7 @@ func TestUpdateTask(t *testing.T) {
 		},
 		{
 			name:      "nil request",
-			taskID:    "task-123",
+			taskID:    testhelper.TestTaskID,
 			req:       nil,
 			wantError: true,
 		},
@@ -133,18 +131,15 @@ func TestUpdateTask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, tt.response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -173,7 +168,7 @@ func TestUpdateTask(t *testing.T) {
 
 func TestGetTasks(t *testing.T) {
 	response := `{
-		"sync_token": "test-sync-token",
+		"sync_token": testhelper.TestSyncToken,
 		"full_sync": true,
 		"items": [
 			{
@@ -195,11 +190,9 @@ func TestGetTasks(t *testing.T) {
 		]
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
 	client, err := NewClient("test-token")
@@ -258,7 +251,7 @@ func TestGetTasksByProject(t *testing.T) {
 	}
 
 	response := `{
-		"sync_token": "test-sync-token",
+		"sync_token": testhelper.TestSyncToken,
 		"full_sync": true,
 		"items": [
 			{
@@ -282,18 +275,15 @@ func TestGetTasksByProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -321,29 +311,23 @@ func TestGetTasksByProject(t *testing.T) {
 }
 
 func TestCloseTask(t *testing.T) {
-	response := `{
-		"sync_token": "test-sync-token-close",
-		"full_sync": false
-	}`
+	response := fmt.Sprintf(testhelper.SimpleSyncResponse, testhelper.TestSyncTokenClose)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
 
 	ctx := context.Background()
-	resp, err := client.CloseTask(ctx, "task-123")
+	resp, err := client.CloseTask(ctx, testhelper.TestTaskID)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -354,35 +338,29 @@ func TestCloseTask(t *testing.T) {
 		return
 	}
 
-	if resp.SyncToken != "test-sync-token-close" {
-		t.Errorf("expected sync token 'test-sync-token-close', got %s", resp.SyncToken)
+	if resp.SyncToken != testhelper.TestSyncTokenClose {
+		t.Errorf("expected sync token '%s', got %s", testhelper.TestSyncTokenClose, resp.SyncToken)
 	}
 }
 
 func TestDeleteTask(t *testing.T) {
-	response := `{
-		"sync_token": "test-sync-token-delete",
-		"full_sync": false
-	}`
+	response := testhelper.DeleteSyncResponse
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
 
 	ctx := context.Background()
-	resp, err := client.DeleteTask(ctx, "task-123")
+	resp, err := client.DeleteTask(ctx, testhelper.TestTaskID)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -393,8 +371,8 @@ func TestDeleteTask(t *testing.T) {
 		return
 	}
 
-	if resp.SyncToken != "test-sync-token-delete" {
-		t.Errorf("expected sync token 'test-sync-token-delete', got %s", resp.SyncToken)
+	if resp.SyncToken != testhelper.TestSyncTokenDelete {
+		t.Errorf("expected sync token '%s', got %s", testhelper.TestSyncTokenDelete, resp.SyncToken)
 	}
 }
 
@@ -446,7 +424,7 @@ func TestPriority_IsValid(t *testing.T) {
 
 func TestGetTasksByPriority(t *testing.T) {
 	response := `{
-		"sync_token": "test-sync-token",
+		"sync_token": testhelper.TestSyncToken,
 		"full_sync": true,
 		"items": [
 			{
@@ -495,18 +473,15 @@ func TestGetTasksByPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}

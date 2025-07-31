@@ -3,8 +3,9 @@ package api
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/kyokomi/gotodoist/internal/testhelper"
 )
 
 func TestGetAllData(t *testing.T) {
@@ -16,18 +17,15 @@ func TestGetAllData(t *testing.T) {
 		"labels": []
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
@@ -69,24 +67,21 @@ func TestGetItems(t *testing.T) {
 		]
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
 
 	ctx := context.Background()
-	resp, err := client.GetItems(ctx, "test-sync-token")
+	resp, err := client.GetItems(ctx, testhelper.TestSyncToken)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -126,24 +121,21 @@ func TestGetProjects(t *testing.T) {
 		]
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
 
 	ctx := context.Background()
-	resp, err := client.GetProjects(ctx, "test-sync-token")
+	resp, err := client.GetProjects(ctx, testhelper.TestSyncToken)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -192,18 +184,15 @@ func TestAddItem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
@@ -241,18 +230,15 @@ func TestUpdateItem(t *testing.T) {
 		"full_sync": false
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
@@ -263,7 +249,7 @@ func TestUpdateItem(t *testing.T) {
 		"priority": 2,
 	}
 
-	resp, err := client.UpdateItem(ctx, "item-123", updates)
+	resp, err := client.UpdateItem(ctx, testhelper.TestItemID, updates)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -285,24 +271,21 @@ func TestCompleteItem(t *testing.T) {
 		"full_sync": false
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
 
 	ctx := context.Background()
-	resp, err := client.CompleteItem(ctx, "item-123")
+	resp, err := client.CompleteItem(ctx, testhelper.TestItemID)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -319,29 +302,23 @@ func TestCompleteItem(t *testing.T) {
 }
 
 func TestDeleteItem(t *testing.T) {
-	response := `{
-		"sync_token": "delete-item-token",
-		"full_sync": false
-	}`
+	response := testhelper.DeleteSyncResponse
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
 
 	ctx := context.Background()
-	resp, err := client.DeleteItem(ctx, "item-123")
+	resp, err := client.DeleteItem(ctx, testhelper.TestItemID)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
@@ -352,8 +329,8 @@ func TestDeleteItem(t *testing.T) {
 		return
 	}
 
-	if resp.SyncToken != "delete-item-token" {
-		t.Errorf("expected sync token 'delete-item-token', got %s", resp.SyncToken)
+	if resp.SyncToken != testhelper.TestSyncTokenDelete {
+		t.Errorf("expected sync token '%s', got %s", testhelper.TestSyncTokenDelete, resp.SyncToken)
 	}
 }
 
@@ -364,18 +341,15 @@ func TestAddProject(t *testing.T) {
 		"temp_id_mapping": {"temp-project-123": "real-project-456"}
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
@@ -407,18 +381,15 @@ func TestUpdateProjectSync(t *testing.T) {
 		"full_sync": false
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
@@ -451,18 +422,15 @@ func TestDeleteProjectSync(t *testing.T) {
 		"full_sync": false
 	}`
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(response))
-	}))
+	server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+		testhelper.JSONResponse(t, w, http.StatusOK, response)
+	})
 	defer server.Close()
 
-	client, err := NewClient("test-token")
+	client, err := NewClient(testhelper.TestAPIToken)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-
 	if err := client.SetBaseURL(server.URL); err != nil {
 		t.Fatalf("failed to set base URL: %v", err)
 	}
@@ -524,18 +492,15 @@ func TestExecuteCommands(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(response))
-			}))
+			server := testhelper.NewHTTPTestServer(func(w http.ResponseWriter, r *http.Request) {
+				testhelper.JSONResponse(t, w, http.StatusOK, response)
+			})
 			defer server.Close()
 
-			client, err := NewClient("test-token")
+			client, err := NewClient(testhelper.TestAPIToken)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
-
 			if err := client.SetBaseURL(server.URL); err != nil {
 				t.Fatalf("failed to set base URL: %v", err)
 			}
