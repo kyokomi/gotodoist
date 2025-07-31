@@ -32,8 +32,8 @@ type Client struct {
 
 // NewClient は新しいAPIクライアントを作成する
 func NewClient(token string) (*Client, error) {
-	if token == "" {
-		return nil, fmt.Errorf("API token is required")
+	if err := validateAPIToken(token); err != nil {
+		return nil, err
 	}
 
 	baseURL, err := url.Parse(DefaultBaseURL)

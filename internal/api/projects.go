@@ -24,11 +24,8 @@ type UpdateProjectRequest struct {
 
 // CreateProject は新しいプロジェクトを作成する
 func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (*SyncResponse, error) {
-	if req == nil {
-		return nil, fmt.Errorf("create project request is required")
-	}
-	if req.Name == "" {
-		return nil, fmt.Errorf("project name is required")
+	if err := validateCreateProjectRequest(req); err != nil {
+		return nil, err
 	}
 
 	args := map[string]interface{}{
@@ -64,11 +61,11 @@ func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (
 
 // UpdateProject は既存のプロジェクトを更新する
 func (c *Client) UpdateProject(ctx context.Context, projectID string, req *UpdateProjectRequest) (*SyncResponse, error) {
-	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+	if err := validateProjectID(projectID); err != nil {
+		return nil, err
 	}
-	if req == nil {
-		return nil, fmt.Errorf("update project request is required")
+	if err := validateUpdateProjectRequest(req); err != nil {
+		return nil, err
 	}
 
 	args := map[string]interface{}{
@@ -122,8 +119,8 @@ func (c *Client) DeleteProject(ctx context.Context, projectID string) (*SyncResp
 
 // ArchiveProject はプロジェクトをアーカイブする
 func (c *Client) ArchiveProject(ctx context.Context, projectID string) (*SyncResponse, error) {
-	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+	if err := validateProjectID(projectID); err != nil {
+		return nil, err
 	}
 
 	cmd := Command{
@@ -144,8 +141,8 @@ func (c *Client) ArchiveProject(ctx context.Context, projectID string) (*SyncRes
 
 // UnarchiveProject はプロジェクトのアーカイブを解除する
 func (c *Client) UnarchiveProject(ctx context.Context, projectID string) (*SyncResponse, error) {
-	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+	if err := validateProjectID(projectID); err != nil {
+		return nil, err
 	}
 
 	cmd := Command{
