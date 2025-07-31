@@ -11,14 +11,14 @@ import (
 type CreateProjectRequest struct {
 	Name       string `json:"name"`
 	ParentID   string `json:"parent_id,omitempty"`
-	Color      int    `json:"color,omitempty"`
+	Color      string `json:"color,omitempty"`
 	IsFavorite bool   `json:"is_favorite,omitempty"`
 }
 
 // UpdateProjectRequest はプロジェクト更新用のリクエスト構造体
 type UpdateProjectRequest struct {
 	Name       string `json:"name,omitempty"`
-	Color      int    `json:"color,omitempty"`
+	Color      string `json:"color,omitempty"`
 	IsFavorite bool   `json:"is_favorite,omitempty"`
 }
 
@@ -38,7 +38,7 @@ func (c *Client) CreateProject(ctx context.Context, req *CreateProjectRequest) (
 	if req.ParentID != "" {
 		args["parent_id"] = req.ParentID
 	}
-	if req.Color > 0 {
+	if req.Color != "" {
 		args["color"] = req.Color
 	}
 	if req.IsFavorite {
@@ -75,7 +75,7 @@ func (c *Client) UpdateProject(ctx context.Context, projectID string, req *Updat
 	if req.Name != "" {
 		args["name"] = req.Name
 	}
-	if req.Color > 0 {
+	if req.Color != "" {
 		args["color"] = req.Color
 	}
 	args["is_favorite"] = req.IsFavorite
@@ -197,24 +197,24 @@ func (c *Client) GetSharedProjects(ctx context.Context) ([]Project, error) {
 
 // Project colors (Todoist API で利用可能な色)
 const (
-	ColorBerryRed   = 30
-	ColorRed        = 31
-	ColorOrange     = 32
-	ColorYellow     = 33
-	ColorOliveGreen = 34
-	ColorLimeGreen  = 35
-	ColorGreen      = 36
-	ColorMintGreen  = 37
-	ColorTeal       = 38
-	ColorSkyBlue    = 39
-	ColorLightBlue  = 40
-	ColorBlue       = 41
-	ColorGrape      = 42
-	ColorViolet     = 43
-	ColorLavender   = 44
-	ColorMagenta    = 45
-	ColorSalmon     = 46
-	ColorCharcoal   = 47
-	ColorGrey       = 48
-	ColorTaupe      = 49
+	ColorBerryRed   = "berry_red"
+	ColorRed        = "red"
+	ColorOrange     = "orange"
+	ColorYellow     = "yellow"
+	ColorOliveGreen = "olive_green"
+	ColorLimeGreen  = "lime_green"
+	ColorGreen      = "green"
+	ColorMintGreen  = "mint_green"
+	ColorTeal       = "teal"
+	ColorSkyBlue    = "sky_blue"
+	ColorLightBlue  = "light_blue"
+	ColorBlue       = "blue"
+	ColorGrape      = "grape"
+	ColorViolet     = "violet"
+	ColorLavender   = "lavender"
+	ColorMagenta    = "magenta"
+	ColorSalmon     = "salmon"
+	ColorCharcoal   = "charcoal"
+	ColorGrey       = "grey"
+	ColorTaupe      = "taupe"
 )

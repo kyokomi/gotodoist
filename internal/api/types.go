@@ -68,7 +68,7 @@ type Due struct {
 type Project struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
-	Color        int    `json:"color"`
+	Color        string `json:"color"`
 	ParentID     string `json:"parent_id,omitempty"`
 	ChildOrder   int    `json:"child_order"`
 	Collapsed    bool   `json:"collapsed"`
@@ -98,7 +98,7 @@ type Section struct {
 type Label struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
-	Color      int    `json:"color"`
+	Color      string `json:"color"`
 	ItemOrder  int    `json:"item_order"`
 	IsDeleted  bool   `json:"is_deleted"`
 	IsFavorite bool   `json:"is_favorite"`
