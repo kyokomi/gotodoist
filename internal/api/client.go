@@ -14,7 +14,7 @@ import (
 
 // デフォルト設定
 const (
-	DefaultBaseURL = "https://api.todoist.com"
+	DefaultBaseURL = "https://api.todoist.com/api/v1"
 	DefaultTimeout = 30 * time.Second
 	UserAgent      = "gotodoist/dev"
 
@@ -183,7 +183,7 @@ func (c *Client) Sync(ctx context.Context, req *SyncRequest) (*SyncResponse, err
 		}
 	}
 
-	httpReq, err := c.newRequest(ctx, http.MethodPost, "/sync/v9/sync", req)
+	httpReq, err := c.newRequest(ctx, http.MethodPost, "/sync", req)
 	if err != nil {
 		return nil, err
 	}
