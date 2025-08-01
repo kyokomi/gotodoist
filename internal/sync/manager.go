@@ -1,3 +1,4 @@
+// Package sync はTodoist APIとの同期機能を提供する
 package sync
 
 import (

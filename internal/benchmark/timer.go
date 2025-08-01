@@ -1,3 +1,4 @@
+// Package benchmark はパフォーマンス測定用のユーティリティを提供する
 package benchmark
 
 import (

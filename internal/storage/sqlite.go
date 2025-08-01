@@ -1,3 +1,4 @@
+// Package storage はローカルデータストレージの実装を提供する
 package storage
 
 import (

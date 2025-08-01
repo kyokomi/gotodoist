@@ -255,7 +255,7 @@ func runTaskListComparison(projectFilter, filterExpression string, showAll bool)
 
 	// 比較結果
 	fmt.Printf("📊 Comparison Results:\n")
-	fmt.Printf(strings.Repeat("─", 50) + "\n")
+	fmt.Printf("%s\n", strings.Repeat("─", 50))
 	fmt.Printf("Local-First:  %s (%d tasks)\n", benchmark.FormatDuration(localDuration), len(localTasks))
 	fmt.Printf("API Direct:   %s (%d tasks)\n", benchmark.FormatDuration(apiDuration), len(apiTasks))
 
@@ -266,7 +266,7 @@ func runTaskListComparison(projectFilter, filterExpression string, showAll bool)
 		slowdown := float64(localDuration) / float64(apiDuration)
 		fmt.Printf("Speed-down:   %.1fx slower with Local-First 😅\n", slowdown)
 	}
-	fmt.Printf(strings.Repeat("─", 50) + "\n")
+	fmt.Printf("%s\n", strings.Repeat("─", 50))
 
 	return nil
 }
@@ -678,42 +678,6 @@ func buildUpdateTaskRequestFromFlags(cmd *cobra.Command) (*api.UpdateTaskRequest
 	}
 
 	return req, nil
-}
-
-// buildProjectsMap はverbose表示用のプロジェクトマップを構築する
-func buildProjectsMap(ctx context.Context, client *api.Client, verbose bool) map[string]string {
-	if !verbose {
-		return nil
-	}
-
-	projects, err := client.GetAllProjects(ctx)
-	if err != nil {
-		// プロジェクト情報の取得に失敗してもタスク表示は続行
-		fmt.Printf("Warning: Failed to load project names: %v\n", err)
-		return make(map[string]string)
-	}
-
-	projectsMap := make(map[string]string)
-	for _, project := range projects {
-		projectsMap[project.ID] = project.Name
-	}
-	return projectsMap
-}
-
-// buildSectionsMap はセクション表示用のセクションマップを構築する
-func buildSectionsMap(ctx context.Context, client *api.Client) map[string]string {
-	sections, err := client.GetAllSections(ctx)
-	if err != nil {
-		// セクション情報の取得に失敗してもタスク表示は続行
-		fmt.Printf("Warning: Failed to load section names: %v\n", err)
-		return make(map[string]string)
-	}
-
-	sectionsMap := make(map[string]string)
-	for _, section := range sections {
-		sectionsMap[section.ID] = section.Name
-	}
-	return sectionsMap
 }
 
 // buildProjectsMapLocal はローカルファーストクライアント用のプロジェクトマップを構築する

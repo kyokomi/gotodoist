@@ -1,3 +1,4 @@
+// Package local はローカルファーストクライアントの実装を提供する
 package local
 
 import (
