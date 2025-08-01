@@ -13,6 +13,10 @@ var (
 	date    = "unknown"
 )
 
+func init() {
+	rootCmd.AddCommand(versionCmd)
+}
+
 // versionCmd はバージョン情報を表示するコマンド
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -25,8 +29,4 @@ var versionCmd = &cobra.Command{
 			fmt.Printf("  built:  %s\n", date)
 		}
 	},
-}
-
-func init() {
-	rootCmd.AddCommand(versionCmd)
 }

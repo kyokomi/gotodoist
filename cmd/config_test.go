@@ -54,8 +54,8 @@ func TestConfigCommandDefinition(t *testing.T) {
 		t.Errorf("expected Short to be 'Manage gotodoist configuration', got %s", configCmd.Short)
 	}
 
-	if configCmd.Run == nil {
-		t.Error("expected Run function to be defined")
+	if configCmd.Run == nil && configCmd.RunE == nil {
+		t.Error("expected Run or RunE function to be defined")
 	}
 
 	// サブコマンドがあることを確認
@@ -81,24 +81,24 @@ func TestConfigSubcommandDefinitions(t *testing.T) {
 	if configShowCmd.Use != "show" {
 		t.Errorf("expected configShowCmd.Use to be 'show', got %s", configShowCmd.Use)
 	}
-	if configShowCmd.Run == nil {
-		t.Error("expected configShowCmd.Run to be defined")
+	if configShowCmd.Run == nil && configShowCmd.RunE == nil {
+		t.Error("expected configShowCmd.Run or RunE to be defined")
 	}
 
 	// pathコマンドのテスト
 	if configPathCmd.Use != "path" {
 		t.Errorf("expected configPathCmd.Use to be 'path', got %s", configPathCmd.Use)
 	}
-	if configPathCmd.Run == nil {
-		t.Error("expected configPathCmd.Run to be defined")
+	if configPathCmd.Run == nil && configPathCmd.RunE == nil {
+		t.Error("expected configPathCmd.Run or RunE to be defined")
 	}
 
 	// initコマンドのテスト
 	if configInitCmd.Use != "init" {
 		t.Errorf("expected configInitCmd.Use to be 'init', got %s", configInitCmd.Use)
 	}
-	if configInitCmd.Run == nil {
-		t.Error("expected configInitCmd.Run to be defined")
+	if configInitCmd.Run == nil && configInitCmd.RunE == nil {
+		t.Error("expected configInitCmd.Run or RunE to be defined")
 	}
 }
 

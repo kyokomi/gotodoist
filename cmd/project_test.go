@@ -6,7 +6,7 @@ import (
 	"github.com/kyokomi/gotodoist/internal/api"
 )
 
-func TestFilterProjectsByArchiveStatus(t *testing.T) {
+func TestProjectFilters(t *testing.T) {
 	archivedProject := api.Project{
 		ID:         "proj1",
 		Name:       "Archived Project",
@@ -18,65 +18,80 @@ func TestFilterProjectsByArchiveStatus(t *testing.T) {
 		IsArchived: false,
 	}
 
-	tests := []struct {
-		name         string
-		projects     []api.Project
-		showArchived bool
-		want         []api.Project
-	}{
-		{
-			name:         "showArchived=true returns only archived projects",
-			projects:     []api.Project{archivedProject, activeProject},
-			showArchived: true,
-			want:         []api.Project{archivedProject},
-		},
-		{
-			name:         "showArchived=false returns only active projects",
-			projects:     []api.Project{archivedProject, activeProject},
-			showArchived: false,
-			want:         []api.Project{activeProject},
-		},
-		{
-			name:         "empty project list",
-			projects:     []api.Project{},
-			showArchived: false,
-			want:         []api.Project{},
-		},
-		{
-			name:         "all projects archived",
-			projects:     []api.Project{archivedProject},
-			showArchived: false,
-			want:         []api.Project{},
-		},
-		{
-			name:         "all projects active",
-			projects:     []api.Project{activeProject},
-			showArchived: true,
-			want:         []api.Project{},
-		},
-		{
-			name:         "multiple archived projects",
-			projects:     []api.Project{archivedProject, archivedProject},
-			showArchived: true,
-			want:         []api.Project{archivedProject, archivedProject},
-		},
+	t.Run("filterArchivedProjects", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			projects []api.Project
+			want     []api.Project
+		}{
+			{
+				name:     "returns only archived projects",
+				projects: []api.Project{archivedProject, activeProject},
+				want:     []api.Project{archivedProject},
+			},
+			{
+				name:     "empty project list",
+				projects: []api.Project{},
+				want:     []api.Project{},
+			},
+			{
+				name:     "all projects active",
+				projects: []api.Project{activeProject},
+				want:     []api.Project{},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := filterArchivedProjects(tt.projects)
+				assertProjectsEqual(t, got, tt.want)
+			})
+		}
+	})
+
+	t.Run("filterActiveProjects", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			projects []api.Project
+			want     []api.Project
+		}{
+			{
+				name:     "returns only active projects",
+				projects: []api.Project{archivedProject, activeProject},
+				want:     []api.Project{activeProject},
+			},
+			{
+				name:     "empty project list",
+				projects: []api.Project{},
+				want:     []api.Project{},
+			},
+			{
+				name:     "all projects archived",
+				projects: []api.Project{archivedProject},
+				want:     []api.Project{},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := filterActiveProjects(tt.projects)
+				assertProjectsEqual(t, got, tt.want)
+			})
+		}
+	})
+}
+
+func assertProjectsEqual(t *testing.T, got, want []api.Project) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Errorf("got %d projects, want %d projects", len(got), len(want))
+		return
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := filterProjectsByArchiveStatus(tt.projects, tt.showArchived)
-
-			if len(got) != len(tt.want) {
-				t.Errorf("got %d projects, want %d projects", len(got), len(tt.want))
-				return
-			}
-
-			for i, project := range got {
-				if project.ID != tt.want[i].ID {
-					t.Errorf("project[%d]: got ID %s, want ID %s", i, project.ID, tt.want[i].ID)
-				}
-			}
-		})
+	for i, project := range got {
+		if project.ID != want[i].ID {
+			t.Errorf("project[%d]: got ID %s, want ID %s", i, project.ID, want[i].ID)
+		}
 	}
 }
 

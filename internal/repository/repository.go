@@ -262,6 +262,100 @@ func (c *Repository) ForceInitialSync(ctx context.Context) error {
 	return c.syncManager.ForceInitialSync(ctx)
 }
 
+// CreateProject はプロジェクトを作成する（API実行 + ローカル反映）
+func (c *Repository) CreateProject(ctx context.Context, req *api.CreateProjectRequest) (*api.SyncResponse, error) {
+	// API実行
+	resp, err := c.apiClient.CreateProject(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// ローカルストレージが有効な場合は sync_token を更新
+	if c.config.Enabled {
+		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
+			log.Printf("Failed to update sync token after project creation: %v", err)
+		}
+	}
+
+	return resp, nil
+}
+
+// UpdateProject はプロジェクトを更新する（API実行 + ローカル反映）
+func (c *Repository) UpdateProject(ctx context.Context, projectID string, req *api.UpdateProjectRequest) (*api.SyncResponse, error) {
+	// API実行
+	resp, err := c.apiClient.UpdateProject(ctx, projectID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// ローカルストレージが有効な場合は sync_token を更新
+	if c.config.Enabled {
+		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
+			log.Printf("Failed to update sync token after project update: %v", err)
+		}
+	}
+
+	return resp, nil
+}
+
+// DeleteProject はプロジェクトを削除する（API実行 + ローカル反映）
+func (c *Repository) DeleteProject(ctx context.Context, projectID string) (*api.SyncResponse, error) {
+	// API実行
+	resp, err := c.apiClient.DeleteProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ローカルストレージが有効な場合は即座に反映
+	if c.config.Enabled {
+		if err := c.storage.DeleteProject(projectID); err != nil {
+			log.Printf("Failed to delete project from local storage: %v", err)
+		}
+
+		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
+			log.Printf("Failed to update sync token after project deletion: %v", err)
+		}
+	}
+
+	return resp, nil
+}
+
+// ArchiveProject はプロジェクトをアーカイブする（API実行 + ローカル反映）
+func (c *Repository) ArchiveProject(ctx context.Context, projectID string) (*api.SyncResponse, error) {
+	// API実行
+	resp, err := c.apiClient.ArchiveProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ローカルストレージが有効な場合は sync_token を更新
+	if c.config.Enabled {
+		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
+			log.Printf("Failed to update sync token after project archive: %v", err)
+		}
+	}
+
+	return resp, nil
+}
+
+// UnarchiveProject はプロジェクトのアーカイブを解除する（API実行 + ローカル反映）
+func (c *Repository) UnarchiveProject(ctx context.Context, projectID string) (*api.SyncResponse, error) {
+	// API実行
+	resp, err := c.apiClient.UnarchiveProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ローカルストレージが有効な場合は sync_token を更新
+	if c.config.Enabled {
+		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
+			log.Printf("Failed to update sync token after project unarchive: %v", err)
+		}
+	}
+
+	return resp, nil
+}
+
 // getDefaultDatabasePath はデフォルトのデータベースパスを返す
 func getDefaultDatabasePath() string {
 	// XDG Base Directory Specification に従う

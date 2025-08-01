@@ -9,6 +9,7 @@ import (
 
 	"github.com/kyokomi/gotodoist/internal/api"
 	"github.com/kyokomi/gotodoist/internal/config"
+	"github.com/kyokomi/gotodoist/internal/repository"
 )
 
 const (
@@ -16,6 +17,37 @@ const (
 	iconInbox  = "📥"
 	iconShared = "👥"
 )
+
+func init() {
+	// サブコマンドを追加
+	projectCmd.AddCommand(projectListCmd)
+	projectCmd.AddCommand(projectAddCmd)
+	projectCmd.AddCommand(projectUpdateCmd)
+	projectCmd.AddCommand(projectDeleteCmd)
+	projectCmd.AddCommand(projectArchiveCmd)
+	projectCmd.AddCommand(projectUnarchiveCmd)
+
+	// プロジェクトコマンドをルートコマンドに追加
+	rootCmd.AddCommand(projectCmd)
+
+	// project list用のフラグ
+	projectListCmd.Flags().BoolP("tree", "t", false, "show projects in tree structure")
+	projectListCmd.Flags().BoolP("archived", "a", false, "show archived projects")
+	projectListCmd.Flags().BoolP("favorites", "f", false, "show favorite projects only")
+
+	// project add用のフラグ
+	projectAddCmd.Flags().StringP("color", "c", "", "project color (e.g., red, blue, green)")
+	projectAddCmd.Flags().StringP("parent", "p", "", "parent project ID or name")
+	projectAddCmd.Flags().BoolP("favorite", "f", false, "mark as favorite project")
+
+	// project update用のフラグ
+	projectUpdateCmd.Flags().StringP("name", "n", "", "new project name")
+	projectUpdateCmd.Flags().StringP("color", "c", "", "project color")
+	projectUpdateCmd.Flags().BoolP("favorite", "f", false, "toggle favorite status")
+
+	// project delete用のフラグ
+	projectDeleteCmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
+}
 
 // projectCmd はプロジェクト関連のコマンド
 var projectCmd = &cobra.Command{
@@ -77,90 +109,341 @@ var projectUnarchiveCmd = &cobra.Command{
 	RunE:  runProjectUnarchive,
 }
 
-func init() {
-	// サブコマンドを追加
-	projectCmd.AddCommand(projectListCmd)
-	projectCmd.AddCommand(projectAddCmd)
-	projectCmd.AddCommand(projectUpdateCmd)
-	projectCmd.AddCommand(projectDeleteCmd)
-	projectCmd.AddCommand(projectArchiveCmd)
-	projectCmd.AddCommand(projectUnarchiveCmd)
+// projectListParams はプロジェクトリストのパラメータ
+type projectListParams struct {
+	showTree      bool
+	showArchived  bool
+	showFavorites bool
+}
 
-	// プロジェクトコマンドをルートコマンドに追加
-	rootCmd.AddCommand(projectCmd)
+// projectListData はプロジェクトリスト実行で取得したデータ
+type projectListData struct {
+	projects []api.Project
+}
 
-	// project list用のフラグ
-	projectListCmd.Flags().BoolP("tree", "t", false, "show projects in tree structure")
-	projectListCmd.Flags().BoolP("archived", "a", false, "show archived projects")
-	projectListCmd.Flags().BoolP("favorites", "f", false, "show favorite projects only")
+// getProjectListParams はコマンドフラグからパラメータを取得する
+func getProjectListParams(cmd *cobra.Command) *projectListParams {
+	showTree, _ := cmd.Flags().GetBool("tree")
+	showArchived, _ := cmd.Flags().GetBool("archived")
+	showFavorites, _ := cmd.Flags().GetBool("favorites")
 
-	// project add用のフラグ
-	projectAddCmd.Flags().StringP("color", "c", "", "project color (e.g., red, blue, green)")
-	projectAddCmd.Flags().StringP("parent", "p", "", "parent project ID or name")
-	projectAddCmd.Flags().BoolP("favorite", "f", false, "mark as favorite project")
-
-	// project update用のフラグ
-	projectUpdateCmd.Flags().StringP("name", "n", "", "new project name")
-	projectUpdateCmd.Flags().StringP("color", "c", "", "project color")
-	projectUpdateCmd.Flags().BoolP("favorite", "f", false, "toggle favorite status")
-
-	// project delete用のフラグ
-	projectDeleteCmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
+	return &projectListParams{
+		showTree:      showTree,
+		showArchived:  showArchived,
+		showFavorites: showFavorites,
+	}
 }
 
 // runProjectList はプロジェクト一覧表示の実際の処理
 func runProjectList(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
-
 	ctx := context.Background()
 
-	// フラグから設定を取得
-	showArchived, _ := cmd.Flags().GetBool("archived")
-	showFavorites, _ := cmd.Flags().GetBool("favorites")
-	showTree, _ := cmd.Flags().GetBool("tree")
+	// 1. セットアップ
+	executor, err := setupProjectExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
 
-	var projects []api.Project
-	if showFavorites {
-		projects, err = client.GetFavoriteProjects(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get favorite projects: %w", err)
-		}
-	} else {
-		projects, err = client.GetAllProjects(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get projects: %w", err)
-		}
+	// 2. パラメータ取得
+	params := getProjectListParams(cmd)
+
+	// 3. データ取得
+	data, err := executor.fetchProjectListData(ctx, params)
+	if err != nil {
+		return err
 	}
 
-	// アーカイブフィルタリング
-	projects = filterProjectsByArchiveStatus(projects, showArchived)
+	// 4. フィルタリング
+	filteredProjects := applyProjectFilters(data.projects, params)
 
+	// 5. 出力
+	displayProjectResults(filteredProjects, params)
+
+	return nil
+}
+
+// projectAddParams はプロジェクト追加のパラメータ
+type projectAddParams struct {
+	name       string
+	color      string
+	parentName string
+	isFavorite bool
+}
+
+// getProjectAddParams はプロジェクト追加のパラメータを取得する
+func getProjectAddParams(cmd *cobra.Command, args []string) *projectAddParams {
+	color, _ := cmd.Flags().GetString("color")
+	parentName, _ := cmd.Flags().GetString("parent")
+	isFavorite, _ := cmd.Flags().GetBool("favorite")
+
+	return &projectAddParams{
+		name:       strings.Join(args, " "),
+		color:      color,
+		parentName: parentName,
+		isFavorite: isFavorite,
+	}
+}
+
+// runProjectAdd はプロジェクト追加の実際の処理
+func runProjectAdd(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// 1. セットアップ
+	executor, err := setupProjectExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. パラメータ取得
+	params := getProjectAddParams(cmd, args)
+
+	// 3. プロジェクト追加実行
+	resp, err := executor.executeProjectAdd(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+
+	// 4. 結果表示
+	displayProjectAddResult(params, resp)
+
+	return nil
+}
+
+// projectUpdateParams はプロジェクト更新のパラメータ
+type projectUpdateParams struct {
+	projectIDOrName string
+	newName         string
+	color           string
+	isFavorite      bool
+	favoriteChanged bool
+}
+
+// getProjectUpdateParams はプロジェクト更新のパラメータを取得する
+func getProjectUpdateParams(cmd *cobra.Command, args []string) *projectUpdateParams {
+	newName, _ := cmd.Flags().GetString("name")
+	color, _ := cmd.Flags().GetString("color")
+	isFavorite, _ := cmd.Flags().GetBool("favorite")
+
+	return &projectUpdateParams{
+		projectIDOrName: args[0],
+		newName:         newName,
+		color:           color,
+		isFavorite:      isFavorite,
+		favoriteChanged: cmd.Flags().Changed("favorite"),
+	}
+}
+
+// runProjectUpdate はプロジェクト更新の実際の処理
+func runProjectUpdate(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// 1. セットアップ
+	executor, err := setupProjectExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. パラメータ取得
+	params := getProjectUpdateParams(cmd, args)
+
+	// 3. 更新内容の確認
+	if params.newName == "" && params.color == "" && !params.favoriteChanged {
+		return fmt.Errorf("at least one update field must be specified (--name, --color, --favorite)")
+	}
+
+	// 4. プロジェクト更新実行
+	resp, err := executor.executeProjectUpdate(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to update project: %w", err)
+	}
+
+	// 5. 結果表示
+	displayProjectUpdateResult(params, resp)
+
+	return nil
+}
+
+// projectDeleteParams はプロジェクト削除のパラメータ
+type projectDeleteParams struct {
+	projectIDOrName string
+	force           bool
+}
+
+// getProjectDeleteParams はプロジェクト削除のパラメータを取得する
+func getProjectDeleteParams(cmd *cobra.Command, args []string) *projectDeleteParams {
+	force, _ := cmd.Flags().GetBool("force")
+	return &projectDeleteParams{
+		projectIDOrName: args[0],
+		force:           force,
+	}
+}
+
+// runProjectDelete はプロジェクト削除の実際の処理
+func runProjectDelete(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// 1. セットアップ
+	executor, err := setupProjectExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. パラメータ取得
+	params := getProjectDeleteParams(cmd, args)
+
+	// 3. 削除対象の確認
+	project, shouldDelete, err := executor.confirmProjectDeletion(ctx, params)
+	if err != nil {
+		return err
+	}
+	if !shouldDelete {
+		return nil // ユーザーがキャンセル
+	}
+
+	// 4. プロジェクト削除実行
+	resp, err := executor.deleteProject(ctx, project.ID)
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %w", err)
+	}
+
+	// 5. 結果表示
+	displayProjectDeleteResult(project, resp)
+
+	return nil
+}
+
+// projectArchiveParams はプロジェクトアーカイブのパラメータ
+type projectArchiveParams struct {
+	projectIDOrName string
+}
+
+// getProjectArchiveParams はプロジェクトアーカイブのパラメータを取得する
+func getProjectArchiveParams(args []string) *projectArchiveParams {
+	return &projectArchiveParams{
+		projectIDOrName: args[0],
+	}
+}
+
+// runProjectArchive はプロジェクトアーカイブの実際の処理
+func runProjectArchive(_ *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// 1. セットアップ
+	executor, err := setupProjectExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. パラメータ取得
+	params := getProjectArchiveParams(args)
+
+	// 3. プロジェクトアーカイブ実行
+	resp, err := executor.executeProjectArchive(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to archive project: %w", err)
+	}
+
+	// 4. 結果表示
+	displaySuccessMessage("📦 Project archived successfully!", resp.SyncToken)
+
+	return nil
+}
+
+// runProjectUnarchive はプロジェクトアーカイブ解除の実際の処理
+func runProjectUnarchive(_ *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// 1. セットアップ
+	executor, err := setupProjectExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. パラメータ取得
+	params := getProjectArchiveParams(args)
+
+	// 3. プロジェクトアーカイブ解除実行
+	resp, err := executor.executeProjectUnarchive(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to unarchive project: %w", err)
+	}
+
+	// 4. 結果表示
+	displaySuccessMessage("📁 Project unarchived successfully!", resp.SyncToken)
+
+	return nil
+}
+
+// applyProjectFilters はプロジェクトにフィルタを適用する
+func applyProjectFilters(projects []api.Project, params *projectListParams) []api.Project {
+	// アーカイブ状態でフィルタリング
+	if !params.showArchived {
+		projects = filterActiveProjects(projects)
+	} else {
+		projects = filterArchivedProjects(projects)
+	}
+
+	return projects
+}
+
+// filterActiveProjects はアクティブなプロジェクトのみを返す
+func filterActiveProjects(projects []api.Project) []api.Project {
+	var filtered []api.Project
+	for _, project := range projects {
+		if !project.IsArchived {
+			filtered = append(filtered, project)
+		}
+	}
+	return filtered
+}
+
+// filterArchivedProjects はアーカイブ済みプロジェクトのみを返す
+func filterArchivedProjects(projects []api.Project) []api.Project {
+	var filtered []api.Project
+	for _, project := range projects {
+		if project.IsArchived {
+			filtered = append(filtered, project)
+		}
+	}
+	return filtered
+}
+
+// displayProjectResults はプロジェクト結果を表示する
+func displayProjectResults(projects []api.Project, params *projectListParams) {
 	// タイトルを取得
-	title, emptyMessage := getProjectListTitle(showArchived, showFavorites)
+	title, emptyMessage := getProjectListTitle(params.showArchived, params.showFavorites)
 
 	if len(projects) == 0 {
 		fmt.Println(emptyMessage)
-		return nil
+		return
 	}
 
 	// プロジェクトを表示
 	fmt.Printf("%s (%d):\n\n", title, len(projects))
 
-	if showTree {
+	if params.showTree {
 		displayProjectsTree(projects)
 	} else {
 		displayProjectsList(projects)
 	}
+}
 
-	return nil
+// getProjectListTitle はプロジェクトリストのタイトルを取得する
+func getProjectListTitle(showArchived, showFavorites bool) (title, emptyMessage string) {
+	switch {
+	case showArchived:
+		return "📦 Archived Projects", "📦 No archived projects found"
+	case showFavorites:
+		return "⭐ Favorite Projects", "⭐ No favorite projects found"
+	default:
+		return "📁 Projects", "📁 No projects found"
+	}
 }
 
 // displayProjectsList はプロジェクトをリスト形式で表示する
@@ -200,91 +483,7 @@ func displayProjectsList(projects []api.Project) {
 	}
 }
 
-// filterProjectsByArchiveStatus はアーカイブ状態でプロジェクトをフィルタリングする
-func filterProjectsByArchiveStatus(projects []api.Project, showArchived bool) []api.Project {
-	var filtered []api.Project
-
-	if showArchived {
-		// アーカイブ済みプロジェクトのみ表示
-		for _, project := range projects {
-			if project.IsArchived {
-				filtered = append(filtered, project)
-			}
-		}
-	} else {
-		// アクティブなプロジェクトのみ表示（デフォルト）
-		for _, project := range projects {
-			if !project.IsArchived {
-				filtered = append(filtered, project)
-			}
-		}
-	}
-
-	return filtered
-}
-
-// getProjectListTitle はプロジェクトリストのタイトルを取得する
-func getProjectListTitle(showArchived, showFavorites bool) (title, emptyMessage string) {
-	switch {
-	case showArchived:
-		return "📦 Archived Projects", "📦 No archived projects found"
-	case showFavorites:
-		return "⭐ Favorite Projects", "⭐ No favorite projects found"
-	default:
-		return "📁 Projects", "📁 No projects found"
-	}
-}
-
-// findProjectByID は指定されたIDのプロジェクトを取得する
-func findProjectByID(ctx context.Context, client *api.Client, projectID string) (*api.Project, error) {
-	projects, err := client.GetAllProjects(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get projects: %w", err)
-	}
-
-	for i := range projects {
-		if projects[i].ID == projectID {
-			return &projects[i], nil
-		}
-	}
-
-	return nil, fmt.Errorf("project not found")
-}
-
-// confirmProjectDeletion はプロジェクト削除の確認を行う
-func confirmProjectDeletion(project *api.Project, force bool) bool {
-	if force {
-		return true
-	}
-
-	fmt.Printf("⚠️  Are you sure you want to delete this project? (y/N)\n")
-	fmt.Printf("    ID: %s\n", project.ID)
-	fmt.Printf("    Name: %s\n", project.Name)
-	fmt.Printf("    Color: %s\n", project.Color)
-	if project.IsFavorite {
-		fmt.Printf("    Favorite: Yes ⭐\n")
-	}
-	if project.Shared {
-		fmt.Printf("    Shared: Yes 👥\n")
-	}
-	fmt.Printf("Enter your choice: ")
-
-	var confirmation string
-	_, err := fmt.Scanln(&confirmation)
-	if err != nil {
-		fmt.Println("❌ Project deletion canceled")
-		return false
-	}
-
-	if confirmation != "y" && confirmation != "Y" {
-		fmt.Println("❌ Project deletion canceled")
-		return false
-	}
-
-	return true
-}
-
-// displayProjectsTree はプロジェクトをツリー形式で表示する（簡易実装）
+// displayProjectsTree はプロジェクトをツリー形式で表示する
 func displayProjectsTree(projects []api.Project) {
 	// 親プロジェクトマップを作成
 	parentMap := make(map[string][]api.Project)
@@ -337,9 +536,123 @@ func displayProjectTreeNode(project *api.Project, parentMap map[string][]api.Pro
 	}
 }
 
-// findProjectIDByNameInProject はプロジェクト名からIDを検索する（プロジェクト専用）
-func findProjectIDByNameInProject(ctx context.Context, client *api.Client, nameOrID string) (string, error) {
-	projects, err := client.GetAllProjects(ctx)
+// displayProjectAddResult はプロジェクト追加結果を表示する
+func displayProjectAddResult(params *projectAddParams, resp *api.SyncResponse) {
+	fmt.Printf("📁 Project created successfully!\n")
+	fmt.Printf("   Name: %s\n", params.name)
+	if params.color != "" {
+		fmt.Printf("   Color: %s\n", params.color)
+	}
+	if params.isFavorite {
+		fmt.Printf("   Favorite: Yes ⭐\n")
+	}
+	if verbose && resp.SyncToken != "" {
+		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
+	}
+}
+
+// displayProjectUpdateResult はプロジェクト更新結果を表示する
+func displayProjectUpdateResult(params *projectUpdateParams, resp *api.SyncResponse) {
+	fmt.Printf("✏️  Project updated successfully!\n")
+	if params.newName != "" {
+		fmt.Printf("   New name: %s\n", params.newName)
+	}
+	if params.color != "" {
+		fmt.Printf("   Color: %s\n", params.color)
+	}
+	if params.favoriteChanged {
+		if params.isFavorite {
+			fmt.Printf("   Favorite: Yes ⭐\n")
+		} else {
+			fmt.Printf("   Favorite: No\n")
+		}
+	}
+	if verbose && resp.SyncToken != "" {
+		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
+	}
+}
+
+// displayProjectDeleteResult はプロジェクト削除結果を表示する
+func displayProjectDeleteResult(project *api.Project, resp *api.SyncResponse) {
+	fmt.Printf("🗑️  Project deleted successfully!\n")
+	fmt.Printf("    Deleted: %s\n", project.Name)
+	if verbose && resp.SyncToken != "" {
+		fmt.Printf("    Sync token: %s\n", resp.SyncToken)
+	}
+}
+
+// projectExecutor はプロジェクト実行に必要な情報をまとめた構造体
+type projectExecutor struct {
+	cfg        *config.Config
+	repository *repository.Repository
+}
+
+// setupProjectExecution はプロジェクト実行環境をセットアップする
+func setupProjectExecution(ctx context.Context) (*projectExecutor, error) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	repo, err := cfg.NewRepository(verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Repository: %w", err)
+	}
+
+	// Repositoryの初期化
+	if err := repo.Initialize(ctx); err != nil {
+		if closeErr := repo.Close(); closeErr != nil {
+			fmt.Printf("Warning: failed to close repository after initialization error: %v\n", closeErr)
+		}
+		return nil, fmt.Errorf("failed to initialize repository: %w", err)
+	}
+
+	return &projectExecutor{
+		cfg:        cfg,
+		repository: repo,
+	}, nil
+}
+
+// cleanup はRepositoryのリソースクリーンアップを行う
+func (e *projectExecutor) cleanup() {
+	if err := e.repository.Close(); err != nil {
+		fmt.Printf("Warning: failed to close repository: %v\n", err)
+	}
+}
+
+// fetchProjectListData はプロジェクトリストのデータを取得する
+func (e *projectExecutor) fetchProjectListData(ctx context.Context, params *projectListParams) (*projectListData, error) {
+	var projects []api.Project
+	var err error
+
+	if params.showFavorites {
+		// お気に入りプロジェクトのみ取得
+		allProjects, err := e.repository.GetAllProjects(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get projects: %w", err)
+		}
+		// お気に入りのみフィルタリング
+		for _, p := range allProjects {
+			if p.IsFavorite {
+				projects = append(projects, p)
+			}
+		}
+	} else {
+		// 全プロジェクトを取得
+		projects, err = e.repository.GetAllProjects(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get projects: %w", err)
+		}
+	}
+
+	return &projectListData{
+		projects: projects,
+	}, nil
+}
+
+// findProjectIDByName はプロジェクト名からIDを検索する
+func (e *projectExecutor) findProjectIDByName(ctx context.Context, nameOrID string) (string, error) {
+	projects, err := e.repository.GetAllProjects(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get projects: %w", err)
 	}
@@ -370,253 +683,141 @@ func findProjectIDByNameInProject(ctx context.Context, client *api.Client, nameO
 	return "", fmt.Errorf("project not found: %s", nameOrID)
 }
 
-// runProjectAdd はプロジェクト追加の実際の処理
-func runProjectAdd(cmd *cobra.Command, args []string) error {
-	cfg, err := config.LoadConfig()
+// findProjectByID は指定されたIDのプロジェクトを取得する
+func (e *projectExecutor) findProjectByID(ctx context.Context, projectID string) (*api.Project, error) {
+	projects, err := e.repository.GetAllProjects(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+		return nil, fmt.Errorf("failed to get projects: %w", err)
 	}
 
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
+	for i := range projects {
+		if projects[i].ID == projectID {
+			return &projects[i], nil
+		}
 	}
 
-	ctx := context.Background()
+	return nil, fmt.Errorf("project not found")
+}
 
-	// フラグから設定を取得
-	color, _ := cmd.Flags().GetString("color")
-	parentName, _ := cmd.Flags().GetString("parent")
-	isFavorite, _ := cmd.Flags().GetBool("favorite")
-
-	// プロジェクト名を結合
-	projectName := strings.Join(args, " ")
-
+// executeProjectAdd はプロジェクト追加を実行する
+func (e *projectExecutor) executeProjectAdd(ctx context.Context, params *projectAddParams) (*api.SyncResponse, error) {
 	// リクエストを構築
 	req := &api.CreateProjectRequest{
-		Name:       projectName,
-		Color:      color,
-		IsFavorite: isFavorite,
+		Name:       params.name,
+		Color:      params.color,
+		IsFavorite: params.isFavorite,
 	}
 
-	if parentName != "" {
+	if params.parentName != "" {
 		// 親プロジェクトIDを解決
-		parentID, err := findProjectIDByNameInProject(ctx, client, parentName)
+		parentID, err := e.findProjectIDByName(ctx, params.parentName)
 		if err != nil {
-			return fmt.Errorf("failed to find parent project: %w", err)
+			return nil, fmt.Errorf("failed to find parent project: %w", err)
 		}
 		req.ParentID = parentID
 	}
 
 	// プロジェクトを作成
-	resp, err := client.CreateProject(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
-	}
-
-	fmt.Printf("📁 Project created successfully!\n")
-	fmt.Printf("   Name: %s\n", projectName)
-	if color != "" {
-		fmt.Printf("   Color: %s\n", color)
-	}
-	if isFavorite {
-		fmt.Printf("   Favorite: Yes ⭐\n")
-	}
-	if verbose {
-		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
-	}
-
-	return nil
+	return e.repository.CreateProject(ctx, req)
 }
 
-// runProjectUpdate はプロジェクト更新の実際の処理
-func runProjectUpdate(cmd *cobra.Command, args []string) error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
-
-	ctx := context.Background()
-	projectIDOrName := args[0]
-
-	// フラグから設定を取得
-	newName, _ := cmd.Flags().GetString("name")
-	color, _ := cmd.Flags().GetString("color")
-	favorite, _ := cmd.Flags().GetBool("favorite")
-
-	// 何も更新内容がない場合はエラー
-	if newName == "" && color == "" && !cmd.Flags().Changed("favorite") {
-		return fmt.Errorf("at least one update field must be specified (--name, --color, --favorite)")
-	}
-
+// executeProjectUpdate はプロジェクト更新を実行する
+func (e *projectExecutor) executeProjectUpdate(ctx context.Context, params *projectUpdateParams) (*api.SyncResponse, error) {
 	// プロジェクトIDを解決
-	projectID, err := findProjectIDByNameInProject(ctx, client, projectIDOrName)
+	projectID, err := e.findProjectIDByName(ctx, params.projectIDOrName)
 	if err != nil {
-		return fmt.Errorf("failed to find project: %w", err)
+		return nil, fmt.Errorf("failed to find project: %w", err)
 	}
 
 	// リクエストを構築
 	req := &api.UpdateProjectRequest{
-		Name:       newName,
-		Color:      color,
-		IsFavorite: favorite,
+		Name:       params.newName,
+		Color:      params.color,
+		IsFavorite: params.isFavorite,
 	}
 
 	// プロジェクトを更新
-	resp, err := client.UpdateProject(ctx, projectID, req)
+	return e.repository.UpdateProject(ctx, projectID, req)
+}
+
+// confirmProjectDeletion はプロジェクト削除の確認を行う
+func (e *projectExecutor) confirmProjectDeletion(ctx context.Context, params *projectDeleteParams) (*api.Project, bool, error) {
+	// プロジェクトIDを解決
+	projectID, err := e.findProjectIDByName(ctx, params.projectIDOrName)
 	if err != nil {
-		return fmt.Errorf("failed to update project: %w", err)
+		return nil, false, fmt.Errorf("failed to find project: %w", err)
 	}
 
-	fmt.Printf("✏️  Project updated successfully!\n")
-	if newName != "" {
-		fmt.Printf("   New name: %s\n", newName)
+	// プロジェクトの詳細を取得
+	targetProject, err := e.findProjectByID(ctx, projectID)
+	if err != nil {
+		return nil, false, fmt.Errorf("project not found: %s - %w", params.projectIDOrName, err)
 	}
-	if color != "" {
-		fmt.Printf("   Color: %s\n", color)
-	}
-	if cmd.Flags().Changed("favorite") {
-		if favorite {
-			fmt.Printf("   Favorite: Yes ⭐\n")
-		} else {
-			fmt.Printf("   Favorite: No\n")
+
+	// 確認処理（forceフラグが無い場合）
+	if !params.force {
+		if !promptProjectDeletionConfirmation(targetProject) {
+			return nil, false, nil // キャンセルされた
 		}
 	}
-	if verbose {
-		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
-	}
 
-	return nil
+	return targetProject, true, nil
 }
 
-// runProjectDelete はプロジェクト削除の実際の処理
-func runProjectDelete(cmd *cobra.Command, args []string) error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+// deleteProject はプロジェクトを削除する
+func (e *projectExecutor) deleteProject(ctx context.Context, projectID string) (*api.SyncResponse, error) {
+	return e.repository.DeleteProject(ctx, projectID)
+}
 
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
-
-	ctx := context.Background()
-	projectIDOrName := args[0]
-
+// executeProjectArchive はプロジェクトアーカイブを実行する
+func (e *projectExecutor) executeProjectArchive(ctx context.Context, params *projectArchiveParams) (*api.SyncResponse, error) {
 	// プロジェクトIDを解決
-	projectID, err := findProjectIDByNameInProject(ctx, client, projectIDOrName)
+	projectID, err := e.findProjectIDByName(ctx, params.projectIDOrName)
 	if err != nil {
-		return fmt.Errorf("failed to find project: %w", err)
+		return nil, fmt.Errorf("failed to find project: %w", err)
 	}
 
-	// プロジェクトの詳細を取得（確認用）
-	targetProject, err := findProjectByID(ctx, client, projectID)
-	if err != nil {
-		return fmt.Errorf("project not found: %s - %w", projectIDOrName, err)
-	}
-
-	// 確認フラグをチェック
-	force, _ := cmd.Flags().GetBool("force")
-	confirmed := confirmProjectDeletion(targetProject, force)
-	if !confirmed {
-		return nil
-	}
-
-	// プロジェクトを削除する
-	resp, err := client.DeleteProject(ctx, projectID)
-	if err != nil {
-		return fmt.Errorf("failed to delete project: %w", err)
-	}
-
-	fmt.Printf("🗑️  Project deleted successfully!\n")
-	fmt.Printf("    Deleted: %s\n", targetProject.Name)
-	if verbose {
-		fmt.Printf("    Sync token: %s\n", resp.SyncToken)
-	}
-
-	return nil
+	// プロジェクトをアーカイブ
+	return e.repository.ArchiveProject(ctx, projectID)
 }
 
-// runProjectArchiveAction はプロジェクトアーカイブ/解除の共通処理
-func runProjectArchiveAction(
-	projectIDOrName string,
-	operation func(context.Context, string) (*api.SyncResponse, error),
-	successMessage, errorMessage string,
-) error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
-
-	ctx := context.Background()
-
+// executeProjectUnarchive はプロジェクトアーカイブ解除を実行する
+func (e *projectExecutor) executeProjectUnarchive(ctx context.Context, params *projectArchiveParams) (*api.SyncResponse, error) {
 	// プロジェクトIDを解決
-	projectID, err := findProjectIDByNameInProject(ctx, client, projectIDOrName)
+	projectID, err := e.findProjectIDByName(ctx, params.projectIDOrName)
 	if err != nil {
-		return fmt.Errorf("failed to find project: %w", err)
+		return nil, fmt.Errorf("failed to find project: %w", err)
 	}
 
-	// 指定された操作を実行
-	resp, err := operation(ctx, projectID)
-	if err != nil {
-		return fmt.Errorf("%s: %w", errorMessage, err)
-	}
-
-	fmt.Printf("%s\n", successMessage)
-	if verbose {
-		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
-	}
-
-	return nil
+	// プロジェクトのアーカイブを解除
+	return e.repository.UnarchiveProject(ctx, projectID)
 }
 
-// runProjectArchive はプロジェクトアーカイブの実際の処理
-func runProjectArchive(_ *cobra.Command, args []string) error {
-	cfg, err := config.LoadConfig()
+// promptProjectDeletionConfirmation はプロジェクト削除の確認プロンプトを表示する
+func promptProjectDeletionConfirmation(project *api.Project) bool {
+	fmt.Printf("⚠️  Are you sure you want to delete this project? (y/N)\n")
+	fmt.Printf("    ID: %s\n", project.ID)
+	fmt.Printf("    Name: %s\n", project.Name)
+	fmt.Printf("    Color: %s\n", project.Color)
+	if project.IsFavorite {
+		fmt.Printf("    Favorite: Yes ⭐\n")
+	}
+	if project.Shared {
+		fmt.Printf("    Shared: Yes 👥\n")
+	}
+	fmt.Printf("Enter your choice: ")
+
+	var confirmation string
+	_, err := fmt.Scanln(&confirmation)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+		fmt.Println("❌ Project deletion canceled")
+		return false
 	}
 
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
+	if confirmation != "y" && confirmation != "Y" {
+		fmt.Println("❌ Project deletion canceled")
+		return false
 	}
 
-	return runProjectArchiveAction(
-		args[0],
-		client.ArchiveProject,
-		"📦 Project archived successfully!",
-		"failed to archive project",
-	)
-}
-
-// runProjectUnarchive はプロジェクトアーカイブ解除の実際の処理
-func runProjectUnarchive(_ *cobra.Command, args []string) error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	client, err := cfg.NewAPIClient()
-	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
-	}
-
-	return runProjectArchiveAction(
-		args[0],
-		client.UnarchiveProject,
-		"📁 Project unarchived successfully!",
-		"failed to unarchive project",
-	)
+	return true
 }
