@@ -48,7 +48,9 @@ func (m *Manager) InitialSync(ctx context.Context) error {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				fmt.Printf("Warning: failed to rollback transaction: %v\n", rollbackErr)
+			}
 		}
 	}()
 
@@ -156,7 +158,9 @@ func (m *Manager) IncrementalSync(ctx context.Context) error {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				fmt.Printf("Warning: failed to rollback transaction: %v\n", rollbackErr)
+			}
 		}
 	}()
 

@@ -78,10 +78,11 @@ jobs:
           exit 1
         fi
 
-    - name: Install and run staticcheck
-      run: |
-        go install honnef.co/go/tools/cmd/staticcheck@latest
-        staticcheck ./...
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v1.61.0
+        args: --timeout=5m
 
   security:
     name: Security

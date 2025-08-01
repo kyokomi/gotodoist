@@ -80,7 +80,11 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			fmt.Printf("Warning: failed to close client: %v\n", err)
+		}
+	}()
 	timer.Step("Client created")
 
 	ctx := context.Background()
@@ -178,7 +182,11 @@ func runTaskListComparison(projectFilter, filterExpression string, showAll bool)
 	if err != nil {
 		return fmt.Errorf("failed to create local client: %w", err)
 	}
-	defer localClient.Close()
+	defer func() {
+		if err := localClient.Close(); err != nil {
+			fmt.Printf("Warning: failed to close local client: %v\n", err)
+		}
+	}()
 	localTimer.Step("Local client created")
 
 	ctx := context.Background()

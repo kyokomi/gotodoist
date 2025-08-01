@@ -1,0 +1,119 @@
+# golangci-lint configuration for v2
+version: 2
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  skip-dirs:
+    - vendor
+    - .github
+  skip-files:
+    - ".*_test.go"
+  modules-download-mode: readonly
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
+  sort-results: true
+
+linters-settings:
+  govet:
+    check-shadowing: true
+    enable-all: true
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+  lll:
+    line-length: 120
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+  funlen:
+    lines: 100
+    statements: 50
+  gosec:
+    excludes:
+      - G404 # Use of weak random number generator (math/rand instead of crypto/rand)
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+        arguments: 
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+
+linters:
+  enable:
+    # デフォルトで有効なlinter（必須）
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    
+    # 追加で有効化するlinter
+    - bodyclose
+    - dupl
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - revive
+    - goprintffuncname
+    - gosec
+    - lll
+    - misspell
+    - nakedret
+    - nolintlint
+    - unconvert
+    - unparam
+    - whitespace
+  disable:
+    - depguard # プロジェクトに応じて有効化
+
+issues:
+  exclude-rules:
+    # テストファイルでは一部のルールを無効化
+    - path: _test\.go
+      linters:
+        - gosec
+        - dupl
+        - funlen
+        - gocyclo
+    # main関数ではinit関数チェックを無効化
+    - path: main\.go
+      linters:
+        - gochecknoinits
+    # エラー変数の命名規則を緩和
+    - text: "error should be the last type when returning multiple items"
+      linters:
+        - stylecheck
+    # コメント関連のルールを緩和（日本語コメント対応）
+    - text: "comment on exported"
+      linters:
+        - revive
+    - text: "should have comment"
+      linters:
+        - revive
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false

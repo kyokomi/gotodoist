@@ -62,7 +62,11 @@ func runSync(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			fmt.Printf("Warning: failed to close client: %v\n", err)
+		}
+	}()
 	timer.Step("Client created")
 
 	ctx := context.Background()
@@ -105,7 +109,11 @@ func runSyncInit(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			fmt.Printf("Warning: failed to close client: %v\n", err)
+		}
+	}()
 	timer.Step("Client created")
 
 	ctx := context.Background()
@@ -148,7 +156,11 @@ func runSyncStatus(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			fmt.Printf("Warning: failed to close client: %v\n", err)
+		}
+	}()
 
 	// 同期状態を取得（初期化せずに直接取得）
 	status, err := client.GetSyncStatus()

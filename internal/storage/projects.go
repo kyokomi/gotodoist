@@ -50,7 +50,12 @@ func (s *SQLiteDB) GetAllProjects() ([]api.Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query projects: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// rows.Close()のエラーは通常ログ出力で十分
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var projects []api.Project
 	for rows.Next() {
@@ -107,7 +112,12 @@ func (s *SQLiteDB) FindProjectsByName(name string) ([]api.Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to search projects by name: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			// rows.Close()のエラーは通常ログ出力で十分
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var projects []api.Project
 	for rows.Next() {

@@ -55,7 +55,11 @@ func (s *SQLiteDB) GetAllSections() ([]api.Section, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sections: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var sections []api.Section
 	for rows.Next() {
@@ -84,7 +88,11 @@ func (s *SQLiteDB) GetSectionsByProject(projectID string) ([]api.Section, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sections by project: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var sections []api.Section
 	for rows.Next() {

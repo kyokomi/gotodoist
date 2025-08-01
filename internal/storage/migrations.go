@@ -82,7 +82,9 @@ func (s *SQLiteDB) runMigration(migration Migration) error {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				fmt.Printf("Warning: failed to rollback transaction: %v\n", rollbackErr)
+			}
 		}
 	}()
 

@@ -23,7 +23,7 @@ type SQLiteDB struct {
 // NewSQLiteDB は新しいSQLiteDBインスタンスを作成する
 func NewSQLiteDB(dbPath string) (*SQLiteDB, error) {
 	// データベースファイルのディレクトリを作成
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0750); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 

@@ -82,7 +82,11 @@ func (s *SQLiteDB) GetTasks() ([]api.Item, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var tasks []api.Item
 	for rows.Next() {
@@ -123,7 +127,11 @@ func (s *SQLiteDB) GetTasksByProject(projectID string) ([]api.Item, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tasks by project: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var tasks []api.Item
 	for rows.Next() {
@@ -235,7 +243,11 @@ func (s *SQLiteDB) getTaskLabels(taskID string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			fmt.Printf("Warning: failed to close rows: %v\n", err)
+		}
+	}()
 
 	var labels []string
 	for rows.Next() {

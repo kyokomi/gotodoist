@@ -39,7 +39,15 @@ fmt: ## コードフォーマットを実行
 	go fmt ./...
 
 # Lint実行
-lint: ## staticcheckでlintを実行
+lint: ## golangci-lintでlintを実行
+	@if ! which golangci-lint > /dev/null; then \
+		echo "Installing golangci-lint..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.61.0; \
+	fi
+	golangci-lint run
+
+# staticcheck実行（従来互換）
+staticcheck: ## staticcheckでlintを実行
 	@if ! which staticcheck > /dev/null; then \
 		echo "Installing staticcheck..."; \
 		go install honnef.co/go/tools/cmd/staticcheck@latest; \
