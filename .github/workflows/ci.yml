@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.21'
+  GO_VERSION: '1.24'
 
 jobs:
   test:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.21', '1.22', '1.23']
+        go-version: ['1.21', '1.22', '1.23', '1.24']
 
     steps:
     - name: Check out code
@@ -37,17 +37,17 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-${{ matrix.go-version }}-
 
+    - name: Download dependencies
+      run: go mod download
+
     - name: Run tests
-      run: make test
+      run: go test -v -race ./...
 
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.go-version == env.GO_VERSION
-      uses: codecov/codecov-action@v5
-      with:
-        file: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+      run: |
+        go test -v -race -coverprofile=coverage.out ./...
+        bash <(curl -s https://codecov.io/bash)
 
   lint:
     name: Lint
@@ -79,8 +79,10 @@ jobs:
           exit 1
         fi
 
-    - name: Run lint
-      run: make lint
+    - name: Install and run staticcheck
+      run: |
+        go install honnef.co/go/tools/cmd/staticcheck@latest
+        staticcheck ./...
 
   security:
     name: Security
@@ -105,8 +107,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
-    - name: Run vulnerability check
-      run: make vuln
+    - name: Install and run vulnerability check
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        govulncheck ./...
 
   build:
     name: Build
