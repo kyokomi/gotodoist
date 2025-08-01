@@ -158,8 +158,6 @@ func displayTask(task *api.Item, index int, projects map[string]string) {
 	if task.Description != "" && verbose {
 		fmt.Printf("   Description: %s\n", task.Description)
 	}
-
-	fmt.Println()
 }
 
 // getPriorityIcon は優先度に応じたアイコンを返す
