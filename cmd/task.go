@@ -89,7 +89,7 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	if err := client.Initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize client: %w", err)
 	}
-	timer.Step("Client initialized")
+	timer.Step("Client initialized (inc. sync check)")
 
 	// フラグから設定を取得
 	projectFilter, _ := cmd.Flags().GetString("project")

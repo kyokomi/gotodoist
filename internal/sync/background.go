@@ -69,8 +69,8 @@ func (bs *BackgroundSyncer) syncLoop(ctx context.Context) {
 	ticker := time.NewTicker(bs.interval)
 	defer ticker.Stop()
 
-	// 最初に一度同期を試行（起動時同期）
-	bs.performSync(ctx)
+	// NOTE: 起動時の即座同期を削除（task listの高速化のため）
+	// 必要に応じてTriggerSync()で手動実行可能
 
 	for {
 		select {
