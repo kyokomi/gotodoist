@@ -67,7 +67,7 @@ brews:
   - repository:
       owner: kyokomi
       name: homebrew-gotodoist
-    folder: Formula
+    directory: Formula
     homepage: https://github.com/kyokomi/gotodoist
     description: CLI for Todoist written in Go
     license: MIT
