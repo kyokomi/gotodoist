@@ -338,6 +338,15 @@ func (c *Client) IsLocalStorageEnabled() bool {
 	return c.config.Enabled
 }
 
+// ForceInitialSync は強制的に初期同期を実行する
+func (c *Client) ForceInitialSync(ctx context.Context) error {
+	if !c.config.Enabled {
+		return fmt.Errorf("local storage is disabled")
+	}
+
+	return c.syncManager.ForceInitialSync(ctx)
+}
+
 // getDefaultDatabasePath はデフォルトのデータベースパスを返す
 func getDefaultDatabasePath() string {
 	// XDG Base Directory Specification に従う

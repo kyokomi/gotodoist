@@ -114,8 +114,8 @@ CREATE INDEX IF NOT EXISTS idx_sections_deleted ON sections(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_projects_deleted ON projects(is_deleted);
 CREATE INDEX IF NOT EXISTS idx_projects_archived ON projects(is_archived);
 
--- 初期データ
-INSERT OR REPLACE INTO sync_state (key, value) VALUES 
+-- 初期データ（既存データがある場合は上書きしない）
+INSERT OR IGNORE INTO sync_state (key, value) VALUES 
     ('sync_token', '*'),
     ('last_sync_time', '0'),
     ('initial_sync_done', 'false'),

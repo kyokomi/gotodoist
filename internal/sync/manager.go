@@ -304,5 +304,22 @@ func (s *SyncStatus) String() string {
 			status = fmt.Sprintf("✅ Last sync: %s", s.LastSyncTime.Format("2006-01-02 15:04:05"))
 		}
 	}
-	return fmt.Sprintf("Sync Status: %s (token: %s)", status, s.SyncToken[:8]+"...")
+
+	// sync_tokenの表示を安全に処理
+	tokenDisplay := s.SyncToken
+	if len(tokenDisplay) > 8 {
+		tokenDisplay = tokenDisplay[:8] + "..."
+	} else if tokenDisplay == "" {
+		tokenDisplay = "none"
+	}
+
+	return fmt.Sprintf("Sync Status: %s (token: %s)", status, tokenDisplay)
+}
+
+// ForceInitialSync は強制的に初期同期を実行する
+func (m *Manager) ForceInitialSync(ctx context.Context) error {
+	if m.verbose {
+		fmt.Println("🔄 Starting forced initial sync...")
+	}
+	return m.InitialSync(ctx)
 }
