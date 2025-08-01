@@ -1,5 +1,5 @@
-// Package local はRepositoryの実装を提供する
-package local
+// Package repository はRepositoryの実装を提供する
+package repository
 
 import (
 	"context"
@@ -50,17 +50,17 @@ func NewRepository(apiClient *api.Client, config *Config, verbose bool) (*Reposi
 	}
 
 	// SQLiteストレージを初期化
-	storage, err := storage.NewSQLiteDB(config.DatabasePath)
+	st, err := storage.NewSQLiteDB(config.DatabasePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize local storage: %w", err)
 	}
 
 	// 同期マネージャーを初期化
-	syncManager := sync.NewManager(apiClient, storage, verbose)
+	syncManager := sync.NewManager(apiClient, st, verbose)
 
 	client := &Repository{
 		apiClient:   apiClient,
-		storage:     storage,
+		storage:     st,
 		syncManager: syncManager,
 		config:      config,
 		verbose:     verbose,

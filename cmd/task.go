@@ -10,7 +10,7 @@ import (
 
 	"github.com/kyokomi/gotodoist/internal/api"
 	"github.com/kyokomi/gotodoist/internal/config"
-	"github.com/kyokomi/gotodoist/internal/local"
+	"github.com/kyokomi/gotodoist/internal/repository"
 )
 
 func init() {
@@ -130,7 +130,7 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	ctx := context.Background()
 
 	// 1. セットアップ
-	setup, err := setupTaskExecution()
+	setup, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func runTaskAdd(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// 1. セットアップ
-	executor, err := setupTaskExecution()
+	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func runTaskComplete(_ *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// 1. セットアップ
-	executor, err := setupTaskExecution()
+	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// 1. セットアップ
-	executor, err := setupTaskExecution()
+	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// 1. セットアップ
-	executor, err := setupTaskExecution()
+	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
@@ -521,24 +521,24 @@ func displayTaskDeleteResult(task *api.Item, resp *api.SyncResponse) {
 // taskExecutor はタスク実行に必要な情報をまとめた構造体
 type taskExecutor struct {
 	cfg        *config.Config
-	repository *local.Repository
+	repository *repository.Repository
 }
 
 // setupTaskExecution はタスク実行環境をセットアップする
-func setupTaskExecution() (*taskExecutor, error) {
+func setupTaskExecution(ctx context.Context) (*taskExecutor, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	repository, err := cfg.NewRepository(verbose)
+	repo, err := cfg.NewRepository(verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Repository: %w", err)
 	}
 
 	// Repositoryの初期化
-	if err := repository.Initialize(context.Background()); err != nil {
-		if closeErr := repository.Close(); closeErr != nil {
+	if err := repo.Initialize(ctx); err != nil {
+		if closeErr := repo.Close(); closeErr != nil {
 			fmt.Printf("Warning: failed to close repository after initialization error: %v\n", closeErr)
 		}
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
@@ -546,7 +546,7 @@ func setupTaskExecution() (*taskExecutor, error) {
 
 	return &taskExecutor{
 		cfg:        cfg,
-		repository: repository,
+		repository: repo,
 	}, nil
 }
 
@@ -629,7 +629,7 @@ func (e *taskExecutor) findProjectIDByName(ctx context.Context, nameOrID string)
 
 // fetchAllTaskListData は必要なデータを全て取得する
 func (e *taskExecutor) fetchAllTaskListData(ctx context.Context, params *taskListParams) (*taskListData, error) {
-	repository := e.repository
+	repo := e.repository
 
 	// プロジェクト情報を取得（ローカル優先）
 	projectsMap := e.buildProjectsMap(ctx, verbose)
@@ -647,13 +647,13 @@ func (e *taskExecutor) fetchAllTaskListData(ctx context.Context, params *taskLis
 		if err != nil {
 			return nil, fmt.Errorf("failed to find project: %w", err)
 		}
-		tasks, err = repository.GetTasksByProject(ctx, projectID)
+		tasks, err = repo.GetTasksByProject(ctx, projectID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tasks: %w", err)
 		}
 	} else {
 		// 全タスクを取得（ローカル優先）
-		tasks, err = repository.GetTasks(ctx)
+		tasks, err = repo.GetTasks(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tasks: %w", err)
 		}
@@ -668,7 +668,7 @@ func (e *taskExecutor) fetchAllTaskListData(ctx context.Context, params *taskLis
 
 // executeTaskAdd はタスク追加を実行する
 func (e *taskExecutor) executeTaskAdd(ctx context.Context, params *taskAddParams) (*api.SyncResponse, error) {
-	repository := e.repository
+	repo := e.repository
 
 	// リクエストを構築
 	req := &api.CreateTaskRequest{
@@ -709,19 +709,19 @@ func (e *taskExecutor) executeTaskAdd(ctx context.Context, params *taskAddParams
 	}
 
 	// タスクを作成
-	return repository.CreateTask(ctx, req)
+	return repo.CreateTask(ctx, req)
 }
 
 // executeTaskComplete はタスク完了を実行する
 func (e *taskExecutor) executeTaskComplete(ctx context.Context, params *taskCompleteParams) (*api.SyncResponse, error) {
-	repository := e.repository
-	return repository.CloseTask(ctx, params.taskID)
+	repo := e.repository
+	return repo.CloseTask(ctx, params.taskID)
 }
 
 // findTaskByID はタスクIDからタスクを検索する
 func (e *taskExecutor) findTaskByID(ctx context.Context, taskID string) (*api.Item, error) {
-	repository := e.repository
-	tasks, err := repository.GetTasks(ctx)
+	repo := e.repository
+	tasks, err := repo.GetTasks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}
@@ -775,8 +775,8 @@ func (e *taskExecutor) executeTaskUpdate(ctx context.Context, params *taskUpdate
 	}
 
 	// タスクを更新
-	repository := e.repository
-	return repository.UpdateTask(ctx, params.taskID, req)
+	repo := e.repository
+	return repo.UpdateTask(ctx, params.taskID, req)
 }
 
 // buildUpdateTaskRequest はタスク更新リクエストを構築する

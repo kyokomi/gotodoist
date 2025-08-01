@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/kyokomi/gotodoist/internal/api"
-	"github.com/kyokomi/gotodoist/internal/local"
+	"github.com/kyokomi/gotodoist/internal/repository"
 )
 
 const (
@@ -23,10 +23,10 @@ const (
 
 // Config はアプリケーション設定を管理する
 type Config struct {
-	APIToken     string        `yaml:"api_token" mapstructure:"api_token"`
-	BaseURL      string        `yaml:"base_url,omitempty" mapstructure:"base_url"`
-	Language     string        `yaml:"language,omitempty" mapstructure:"language"`
-	LocalStorage *local.Config `yaml:"local_storage,omitempty" mapstructure:"local_storage"`
+	APIToken     string             `yaml:"api_token" mapstructure:"api_token"`
+	BaseURL      string             `yaml:"base_url,omitempty" mapstructure:"base_url"`
+	Language     string             `yaml:"language,omitempty" mapstructure:"language"`
+	LocalStorage *repository.Config `yaml:"local_storage,omitempty" mapstructure:"local_storage"`
 }
 
 // DefaultConfig はデフォルト設定を返す
@@ -34,7 +34,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		BaseURL:      "https://api.todoist.com/api/v1",
 		Language:     DefaultLanguage,
-		LocalStorage: local.DefaultConfig(),
+		LocalStorage: repository.DefaultConfig(),
 	}
 }
 
@@ -112,7 +112,7 @@ func (c *Config) NewAPIClient() (*api.Client, error) {
 }
 
 // NewRepository は設定からRepositoryを作成する
-func (c *Config) NewRepository(verbose bool) (*local.Repository, error) {
+func (c *Config) NewRepository(verbose bool) (*repository.Repository, error) {
 	// 基本APIクライアントを作成
 	apiClient, err := c.NewAPIClient()
 	if err != nil {
@@ -120,7 +120,7 @@ func (c *Config) NewRepository(verbose bool) (*local.Repository, error) {
 	}
 
 	// Repositoryを作成
-	localRepository, err := local.NewRepository(apiClient, c.LocalStorage, verbose)
+	localRepository, err := repository.NewRepository(apiClient, c.LocalStorage, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Repository: %w", err)
 	}
