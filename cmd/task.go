@@ -85,6 +85,9 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	// プロジェクト情報を取得（verbose表示用）
 	projectsMap := buildProjectsMap(ctx, client, verbose)
 
+	// セクション情報を取得
+	sectionsMap := buildSectionsMap(ctx, client)
+
 	var tasks []api.Item
 	if projectFilter != "" {
 		// プロジェクト指定がある場合
@@ -122,17 +125,25 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	// タスクを表示
 	fmt.Printf("📝 Found %d task(s):\n\n", len(tasks))
 	for i := range tasks {
-		displayTask(&tasks[i], i+1, projectsMap)
+		displayTask(&tasks[i], projectsMap, sectionsMap)
 	}
 
 	return nil
 }
 
 // displayTask はタスクを表示する
-func displayTask(task *api.Item, index int, projects map[string]string) {
+func displayTask(task *api.Item, projects map[string]string, sections map[string]string) {
 	priorityIcon := getPriorityIcon(task.Priority)
 
-	fmt.Printf("%d. %s %s\n", index, priorityIcon, task.Content)
+	// セクション名を取得
+	sectionName := ""
+	if task.SectionID != "" {
+		if name, exists := sections[task.SectionID]; exists {
+			sectionName = fmt.Sprintf(" [%s]", name)
+		}
+	}
+
+	fmt.Printf("%s %s%s\n", priorityIcon, task.Content, sectionName)
 
 	if verbose {
 		fmt.Printf("   ID: %s\n", task.ID)
@@ -547,6 +558,22 @@ func buildProjectsMap(ctx context.Context, client *api.Client, verbose bool) map
 		projectsMap[project.ID] = project.Name
 	}
 	return projectsMap
+}
+
+// buildSectionsMap はセクション表示用のセクションマップを構築する
+func buildSectionsMap(ctx context.Context, client *api.Client) map[string]string {
+	sections, err := client.GetAllSections(ctx)
+	if err != nil {
+		// セクション情報の取得に失敗してもタスク表示は続行
+		fmt.Printf("Warning: Failed to load section names: %v\n", err)
+		return make(map[string]string)
+	}
+
+	sectionsMap := make(map[string]string)
+	for _, section := range sections {
+		sectionsMap[section.ID] = section.Name
+	}
+	return sectionsMap
 }
 
 // filterActiveTasks は完了済みタスクを除外する
