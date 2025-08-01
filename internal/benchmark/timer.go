@@ -81,11 +81,11 @@ func (t *Timer) PrintResults() {
 func formatDuration(d time.Duration) string {
 	if d < time.Millisecond {
 		return fmt.Sprintf("%.1fμs", float64(d)/float64(time.Microsecond))
-	} else if d < time.Second {
-		return fmt.Sprintf("%.1fms", float64(d)/float64(time.Millisecond))
-	} else {
-		return fmt.Sprintf("%.2fs", float64(d)/float64(time.Second))
 	}
+	if d < time.Second {
+		return fmt.Sprintf("%.1fms", float64(d)/float64(time.Millisecond))
+	}
+	return fmt.Sprintf("%.2fs", float64(d)/float64(time.Second))
 }
 
 // GetTotalDuration は総実行時間を返す

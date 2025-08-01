@@ -1,64 +1,12 @@
-# golangci-lint configuration for v2
-version: 2
+# golangci-lint configuration file
+# Official documentation: https://golangci-lint.run/usage/configuration/
+version: "2"
 
 run:
   timeout: 5m
-  issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor
-    - .github
-  skip-files:
-    - ".*_test.go"
-  modules-download-mode: readonly
-
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-  uniq-by-line: true
-  sort-results: true
-
-linters-settings:
-  govet:
-    check-shadowing: true
-    enable-all: true
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-  lll:
-    line-length: 120
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-  funlen:
-    lines: 100
-    statements: 50
-  gosec:
-    excludes:
-      - G404 # Use of weak random number generator (math/rand instead of crypto/rand)
-  revive:
-    rules:
-      - name: exported
-        disabled: false
-        arguments: 
-          - "checkPrivateReceivers"
-          - "sayRepetitiveInsteadOfStutters"
+  build-tags:
+    - integration
 
 linters:
   enable:
@@ -72,15 +20,12 @@ linters:
     # 追加で有効化するlinter
     - bodyclose
     - dupl
-    - funlen
-    - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
     - revive
     - goprintffuncname
     - gosec
-    - lll
     - misspell
     - nakedret
     - nolintlint
@@ -88,25 +33,59 @@ linters:
     - unparam
     - whitespace
   disable:
-    - depguard # プロジェクトに応じて有効化
+    - depguard        # プロジェクトに応じて有効化
+    - funlen          # 関数長制限を無効化
+                      # 理由: テスト関数で複数パターンをまとめて記述することが多く、
+                      #       分割すると可読性が低下する。本体コードでも適度な長さは許容する
+    - lll             # 行長制限を無効化
+                      # 理由: 現代のエディタでは長い行でも問題なく、
+                      #       無理に改行するとかえって読みにくくなることが多い
+    - gochecknoinits  # init関数使用チェックを無効化
+                      # 理由: cobra CLIフレームワークではinit関数でのコマンド登録が標準パターン
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+  gosec:
+    excludes:
+      - G404 # math/randの使用を許可
+  revive:
+    rules:
+      - name: exported
+        disabled: false
 
 issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
   exclude-rules:
     # テストファイルでは一部のルールを無効化
     - path: _test\.go
       linters:
         - gosec
         - dupl
-        - funlen
         - gocyclo
-    # main関数ではinit関数チェックを無効化
-    - path: main\.go
-      linters:
-        - gochecknoinits
-    # エラー変数の命名規則を緩和
-    - text: "error should be the last type when returning multiple items"
-      linters:
-        - stylecheck
     # コメント関連のルールを緩和（日本語コメント対応）
     - text: "comment on exported"
       linters:
@@ -114,6 +93,6 @@ issues:
     - text: "should have comment"
       linters:
         - revive
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  new: false
+
+output:
+  format: colored-line-number
