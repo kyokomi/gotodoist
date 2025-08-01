@@ -171,7 +171,7 @@ local_storage:
   enabled: ` + fmt.Sprintf("%t", defaultConfig.LocalStorage.Enabled) + `
   
   # データベースファイルのパス
-  database_path: "` + defaultConfig.LocalStorage.DatabasePath + `"
+  database_path: ` + fmt.Sprintf("%q", defaultConfig.LocalStorage.DatabasePath) + `
   
   # 起動時に初期同期を実行する
   initial_sync_on_startup: ` + fmt.Sprintf("%t", defaultConfig.LocalStorage.InitialSyncOnStart) + `
