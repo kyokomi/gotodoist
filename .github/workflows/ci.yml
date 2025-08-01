@@ -16,7 +16,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.21', '1.22', '1.23', '1.24']
 
     steps:
     - name: Check out code
@@ -25,7 +24,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: ${{ matrix.go-version }}
+        go-version: ${{ env.GO_VERSION }}
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -33,9 +32,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-${{ matrix.go-version }}-
+          ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
     - name: Download dependencies
       run: go mod download
@@ -44,7 +43,7 @@ jobs:
       run: go test -v -race ./...
 
     - name: Upload coverage
-      if: matrix.os == 'ubuntu-latest' && matrix.go-version == env.GO_VERSION
+      if: matrix.os == 'ubuntu-latest'
       run: |
         go test -v -race -coverprofile=coverage.out ./...
         bash <(curl -s https://codecov.io/bash)
