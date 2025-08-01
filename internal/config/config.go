@@ -111,21 +111,21 @@ func (c *Config) NewAPIClient() (*api.Client, error) {
 	return client, nil
 }
 
-// NewLocalFirstClient は設定からローカルファーストクライアントを作成する
-func (c *Config) NewLocalFirstClient(verbose bool) (*local.Client, error) {
+// NewRepository は設定からRepositoryを作成する
+func (c *Config) NewRepository(verbose bool) (*local.Repository, error) {
 	// 基本APIクライアントを作成
 	apiClient, err := c.NewAPIClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	// ローカルファーストクライアントを作成
-	localClient, err := local.NewClient(apiClient, c.LocalStorage, verbose)
+	// Repositoryを作成
+	localRepository, err := local.NewRepository(apiClient, c.LocalStorage, verbose)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create local-first client: %w", err)
+		return nil, fmt.Errorf("failed to create Repository: %w", err)
 	}
 
-	return localClient, nil
+	return localRepository, nil
 }
 
 // GetConfigDir は設定ディレクトリのパスを返す（XDG Base Directory仕様に準拠）

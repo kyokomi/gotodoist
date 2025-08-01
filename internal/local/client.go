@@ -1,4 +1,4 @@
-// Package local はローカルファーストクライアントの実装を提供する
+// Package local はRepositoryの実装を提供する
 package local
 
 import (
@@ -13,8 +13,8 @@ import (
 	"github.com/kyokomi/gotodoist/internal/sync"
 )
 
-// Client はローカルファーストのAPIクライアント
-type Client struct {
+// Repository はローカルファーストのTodoistリポジトリ
+type Repository struct {
 	apiClient   *api.Client
 	storage     *storage.SQLiteDB
 	syncManager *sync.Manager
@@ -38,11 +38,11 @@ func DefaultConfig() *Config {
 	}
 }
 
-// NewClient は新しいローカルファーストクライアントを作成する
-func NewClient(apiClient *api.Client, config *Config, verbose bool) (*Client, error) {
+// NewRepository は新しいローカルファーストリポジトリを作成する
+func NewRepository(apiClient *api.Client, config *Config, verbose bool) (*Repository, error) {
 	if !config.Enabled {
-		// ローカルストレージが無効の場合は、APIクライアントをそのまま返すためのラッパー
-		return &Client{
+		// ローカルストレージが無効の場合は、APIを直接呼び出すRepository
+		return &Repository{
 			apiClient: apiClient,
 			config:    config,
 			verbose:   verbose,
@@ -58,7 +58,7 @@ func NewClient(apiClient *api.Client, config *Config, verbose bool) (*Client, er
 	// 同期マネージャーを初期化
 	syncManager := sync.NewManager(apiClient, storage, verbose)
 
-	client := &Client{
+	client := &Repository{
 		apiClient:   apiClient,
 		storage:     storage,
 		syncManager: syncManager,
@@ -69,8 +69,8 @@ func NewClient(apiClient *api.Client, config *Config, verbose bool) (*Client, er
 	return client, nil
 }
 
-// Initialize はクライアントを初期化する（必要に応じて初期同期を実行）
-func (c *Client) Initialize(ctx context.Context) error {
+// Initialize はRepositoryを初期化する（必要に応じて初期同期を実行）
+func (c *Repository) Initialize(ctx context.Context) error {
 	if !c.config.Enabled {
 		return nil // ローカルストレージが無効の場合は何もしない
 	}
@@ -95,8 +95,8 @@ func (c *Client) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// Close はクライアントを終了する
-func (c *Client) Close() error {
+// Close はRepositoryを終了する
+func (c *Repository) Close() error {
 	if c.storage != nil {
 		return c.storage.Close()
 	}
@@ -105,7 +105,7 @@ func (c *Client) Close() error {
 }
 
 // GetTasks は全てのタスクを取得する（ローカル優先）
-func (c *Client) GetTasks(ctx context.Context) ([]api.Item, error) {
+func (c *Repository) GetTasks(ctx context.Context) ([]api.Item, error) {
 	if !c.config.Enabled {
 		// ローカルストレージが無効の場合はAPIから直接取得
 		return c.apiClient.GetTasks(ctx)
@@ -116,7 +116,7 @@ func (c *Client) GetTasks(ctx context.Context) ([]api.Item, error) {
 }
 
 // GetTasksByProject はプロジェクト指定でタスクを取得する（ローカル優先）
-func (c *Client) GetTasksByProject(ctx context.Context, projectID string) ([]api.Item, error) {
+func (c *Repository) GetTasksByProject(ctx context.Context, projectID string) ([]api.Item, error) {
 	if !c.config.Enabled {
 		return c.apiClient.GetTasksByProject(ctx, projectID)
 	}
@@ -126,7 +126,7 @@ func (c *Client) GetTasksByProject(ctx context.Context, projectID string) ([]api
 }
 
 // GetAllProjects は全てのプロジェクトを取得する（ローカル優先）
-func (c *Client) GetAllProjects(ctx context.Context) ([]api.Project, error) {
+func (c *Repository) GetAllProjects(ctx context.Context) ([]api.Project, error) {
 	if !c.config.Enabled {
 		return c.apiClient.GetAllProjects(ctx)
 	}
@@ -136,7 +136,7 @@ func (c *Client) GetAllProjects(ctx context.Context) ([]api.Project, error) {
 }
 
 // GetAllSections は全てのセクションを取得する（ローカル優先）
-func (c *Client) GetAllSections(ctx context.Context) ([]api.Section, error) {
+func (c *Repository) GetAllSections(ctx context.Context) ([]api.Section, error) {
 	if !c.config.Enabled {
 		return c.apiClient.GetAllSections(ctx)
 	}
@@ -146,7 +146,7 @@ func (c *Client) GetAllSections(ctx context.Context) ([]api.Section, error) {
 }
 
 // CreateTask はタスクを作成する（API実行 + ローカル反映）
-func (c *Client) CreateTask(ctx context.Context, req *api.CreateTaskRequest) (*api.SyncResponse, error) {
+func (c *Repository) CreateTask(ctx context.Context, req *api.CreateTaskRequest) (*api.SyncResponse, error) {
 	// API実行
 	resp, err := c.apiClient.CreateTask(ctx, req)
 	if err != nil {
@@ -173,7 +173,7 @@ func (c *Client) CreateTask(ctx context.Context, req *api.CreateTaskRequest) (*a
 }
 
 // UpdateTask はタスクを更新する（API実行 + ローカル反映）
-func (c *Client) UpdateTask(ctx context.Context, taskID string, req *api.UpdateTaskRequest) (*api.SyncResponse, error) {
+func (c *Repository) UpdateTask(ctx context.Context, taskID string, req *api.UpdateTaskRequest) (*api.SyncResponse, error) {
 	// API実行
 	resp, err := c.apiClient.UpdateTask(ctx, taskID, req)
 	if err != nil {
@@ -191,7 +191,7 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, req *api.UpdateT
 }
 
 // DeleteTask はタスクを削除する（API実行 + ローカル反映）
-func (c *Client) DeleteTask(ctx context.Context, taskID string) (*api.SyncResponse, error) {
+func (c *Repository) DeleteTask(ctx context.Context, taskID string) (*api.SyncResponse, error) {
 	// API実行
 	resp, err := c.apiClient.DeleteTask(ctx, taskID)
 	if err != nil {
@@ -213,7 +213,7 @@ func (c *Client) DeleteTask(ctx context.Context, taskID string) (*api.SyncRespon
 }
 
 // CloseTask はタスクを完了にする（API実行 + ローカル反映）
-func (c *Client) CloseTask(ctx context.Context, taskID string) (*api.SyncResponse, error) {
+func (c *Repository) CloseTask(ctx context.Context, taskID string) (*api.SyncResponse, error) {
 	// API実行
 	resp, err := c.apiClient.CloseTask(ctx, taskID)
 	if err != nil {
@@ -231,7 +231,7 @@ func (c *Client) CloseTask(ctx context.Context, taskID string) (*api.SyncRespons
 }
 
 // Sync は手動で同期を実行する
-func (c *Client) Sync(ctx context.Context) error {
+func (c *Repository) Sync(ctx context.Context) error {
 	if !c.config.Enabled {
 		return fmt.Errorf("local storage is disabled")
 	}
@@ -240,7 +240,7 @@ func (c *Client) Sync(ctx context.Context) error {
 }
 
 // GetSyncStatus は同期状態を取得する
-func (c *Client) GetSyncStatus() (*sync.Status, error) {
+func (c *Repository) GetSyncStatus() (*sync.Status, error) {
 	if !c.config.Enabled {
 		return nil, fmt.Errorf("local storage is disabled")
 	}
@@ -249,12 +249,12 @@ func (c *Client) GetSyncStatus() (*sync.Status, error) {
 }
 
 // IsLocalStorageEnabled はローカルストレージが有効かどうかを返す
-func (c *Client) IsLocalStorageEnabled() bool {
+func (c *Repository) IsLocalStorageEnabled() bool {
 	return c.config.Enabled
 }
 
 // ForceInitialSync は強制的に初期同期を実行する
-func (c *Client) ForceInitialSync(ctx context.Context) error {
+func (c *Repository) ForceInitialSync(ctx context.Context) error {
 	if !c.config.Enabled {
 		return fmt.Errorf("local storage is disabled")
 	}

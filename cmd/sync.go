@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/kyokomi/gotodoist/internal/benchmark"
 	"github.com/kyokomi/gotodoist/internal/config"
 )
 
@@ -46,96 +45,82 @@ var syncStatusCmd = &cobra.Command{
 
 // runSync は増分同期の実際の処理
 func runSync(_ *cobra.Command, _ []string) error {
-	timer := benchmark.NewTimer(showBenchmark)
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
-	timer.Step("Config loaded")
 
 	if !cfg.LocalStorage.Enabled {
 		return fmt.Errorf("local storage is disabled. Enable it in config to use sync command")
 	}
 
-	client, err := cfg.NewLocalFirstClient(verbose)
+	repository, err := cfg.NewRepository(verbose)
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("failed to create repository: %w", err)
 	}
 	defer func() {
-		if err := client.Close(); err != nil {
-			fmt.Printf("Warning: failed to close client: %v\n", err)
+		if err := repository.Close(); err != nil {
+			fmt.Printf("Warning: failed to close repository: %v\n", err)
 		}
 	}()
-	timer.Step("Client created")
 
 	ctx := context.Background()
 
 	// 増分同期を実行
-	if err := client.Sync(ctx); err != nil {
+	if err := repository.Sync(ctx); err != nil {
 		return fmt.Errorf("failed to sync: %w", err)
 	}
-	timer.Step("Incremental sync completed")
 
 	fmt.Println("✅ Synchronization completed successfully!")
 
 	// 同期状態を表示
-	status, err := client.GetSyncStatus()
+	status, err := repository.GetSyncStatus()
 	if err != nil {
 		return fmt.Errorf("failed to get sync status: %w", err)
 	}
 	fmt.Printf("📊 %s\n", status.String())
-	timer.Step("Status displayed")
 
-	timer.PrintResults()
 	return nil
 }
 
 // runSyncInit は初期同期の実際の処理
 func runSyncInit(_ *cobra.Command, _ []string) error {
-	timer := benchmark.NewTimer(showBenchmark)
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
-	timer.Step("Config loaded")
 
 	if !cfg.LocalStorage.Enabled {
 		return fmt.Errorf("local storage is disabled. Enable it in config to use sync command")
 	}
 
-	client, err := cfg.NewLocalFirstClient(verbose)
+	repository, err := cfg.NewRepository(verbose)
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("failed to create repository: %w", err)
 	}
 	defer func() {
-		if err := client.Close(); err != nil {
-			fmt.Printf("Warning: failed to close client: %v\n", err)
+		if err := repository.Close(); err != nil {
+			fmt.Printf("Warning: failed to close repository: %v\n", err)
 		}
 	}()
-	timer.Step("Client created")
 
 	ctx := context.Background()
 
 	// 強制的に初期同期を実行
 	fmt.Println("🔄 Starting initial synchronization...")
-	if err := client.ForceInitialSync(ctx); err != nil {
+	if err := repository.ForceInitialSync(ctx); err != nil {
 		return fmt.Errorf("failed to run initial sync: %w", err)
 	}
-	timer.Step("Initial sync completed")
 
 	fmt.Println("✅ Initial synchronization completed successfully!")
 
 	// 同期状態を表示
-	status, err := client.GetSyncStatus()
+	status, err := repository.GetSyncStatus()
 	if err != nil {
 		return fmt.Errorf("failed to get sync status: %w", err)
 	}
 	fmt.Printf("📊 %s\n", status.String())
-	timer.Step("Status displayed")
 
-	timer.PrintResults()
 	return nil
 }
 
@@ -152,18 +137,18 @@ func runSyncStatus(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	client, err := cfg.NewLocalFirstClient(verbose)
+	repository, err := cfg.NewRepository(verbose)
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return fmt.Errorf("failed to create repository: %w", err)
 	}
 	defer func() {
-		if err := client.Close(); err != nil {
-			fmt.Printf("Warning: failed to close client: %v\n", err)
+		if err := repository.Close(); err != nil {
+			fmt.Printf("Warning: failed to close repository: %v\n", err)
 		}
 	}()
 
 	// 同期状態を取得（初期化せずに直接取得）
-	status, err := client.GetSyncStatus()
+	status, err := repository.GetSyncStatus()
 	if err != nil {
 		return fmt.Errorf("failed to get sync status: %w", err)
 	}

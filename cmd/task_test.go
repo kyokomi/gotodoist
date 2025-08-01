@@ -120,8 +120,14 @@ func TestBuildUpdateTaskRequestFromFlags(t *testing.T) {
 				}
 			}
 
+			// Get parameters from command flags
+			params := getTaskUpdateParams(cmd, []string{"test-id"})
+
+			// Create a dummy executor for testing
+			executor := &taskExecutor{}
+
 			// Call the function
-			got, err := buildUpdateTaskRequestFromFlags(cmd)
+			got, err := executor.buildUpdateTaskRequest(params)
 
 			// Check error expectations
 			if tt.wantError {
