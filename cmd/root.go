@@ -19,9 +19,10 @@ const (
 
 var (
 	// フラグ用の変数
-	verbose bool
-	debug   bool
-	lang    string
+	verbose       bool
+	debug         bool
+	lang          string
+	showBenchmark bool
 	// アプリケーション設定
 	appConfig *config.Config
 )
@@ -61,6 +62,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&lang, "lang", "", "language preference (en/ja)")
+	rootCmd.PersistentFlags().BoolVar(&showBenchmark, "benchmark", false, "show detailed performance timing")
 
 	// 設定の初期化（後で実装）
 	cobra.OnInitialize(initConfig)

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/kyokomi/gotodoist/internal/api"
+	"github.com/kyokomi/gotodoist/internal/local"
 )
 
 const (
@@ -22,16 +23,18 @@ const (
 
 // Config はアプリケーション設定を管理する
 type Config struct {
-	APIToken string `yaml:"api_token" mapstructure:"api_token"`
-	BaseURL  string `yaml:"base_url,omitempty" mapstructure:"base_url"`
-	Language string `yaml:"language,omitempty" mapstructure:"language"`
+	APIToken     string        `yaml:"api_token" mapstructure:"api_token"`
+	BaseURL      string        `yaml:"base_url,omitempty" mapstructure:"base_url"`
+	Language     string        `yaml:"language,omitempty" mapstructure:"language"`
+	LocalStorage *local.Config `yaml:"local_storage,omitempty" mapstructure:"local_storage"`
 }
 
 // DefaultConfig はデフォルト設定を返す
 func DefaultConfig() *Config {
 	return &Config{
-		BaseURL:  "https://api.todoist.com/api/v1",
-		Language: DefaultLanguage,
+		BaseURL:      "https://api.todoist.com/api/v1",
+		Language:     DefaultLanguage,
+		LocalStorage: local.DefaultConfig(),
 	}
 }
 
@@ -45,6 +48,11 @@ func LoadConfig() (*Config, error) {
 	v.SetDefault("api_token", defaultConfig.APIToken)
 	v.SetDefault("base_url", defaultConfig.BaseURL)
 	v.SetDefault("language", defaultConfig.Language)
+
+	// ローカルストレージのデフォルト値
+	v.SetDefault("local_storage.enabled", defaultConfig.LocalStorage.Enabled)
+	v.SetDefault("local_storage.database_path", defaultConfig.LocalStorage.DatabasePath)
+	v.SetDefault("local_storage.initial_sync_on_startup", defaultConfig.LocalStorage.InitialSyncOnStart)
 
 	// 環境変数の設定（優先度最高）
 	v.SetEnvPrefix("TODOIST")
@@ -103,6 +111,23 @@ func (c *Config) NewAPIClient() (*api.Client, error) {
 	return client, nil
 }
 
+// NewLocalFirstClient は設定からローカルファーストクライアントを作成する
+func (c *Config) NewLocalFirstClient(verbose bool) (*local.Client, error) {
+	// 基本APIクライアントを作成
+	apiClient, err := c.NewAPIClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	// ローカルファーストクライアントを作成
+	localClient, err := local.NewClient(apiClient, c.LocalStorage, verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create local-first client: %w", err)
+	}
+
+	return localClient, nil
+}
+
 // GetConfigDir は設定ディレクトリのパスを返す（XDG Base Directory仕様に準拠）
 func GetConfigDir() (string, error) {
 	// XDG_CONFIG_HOME環境変数があればそれを使用
@@ -139,6 +164,17 @@ base_url: "` + defaultConfig.BaseURL + `"
 
 # 言語設定（en/ja）
 language: "` + defaultConfig.Language + `"
+
+# ローカルストレージ設定（高速化機能）
+local_storage:
+  # ローカルストレージを有効にする（大幅な高速化）
+  enabled: ` + fmt.Sprintf("%t", defaultConfig.LocalStorage.Enabled) + `
+  
+  # データベースファイルのパス
+  database_path: ` + fmt.Sprintf("%q", filepath.ToSlash(defaultConfig.LocalStorage.DatabasePath)) + `
+  
+  # 起動時に初期同期を実行する
+  initial_sync_on_startup: ` + fmt.Sprintf("%t", defaultConfig.LocalStorage.InitialSyncOnStart) + `
 `
 
 	// ファイルに書き込み

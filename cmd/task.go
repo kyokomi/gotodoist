@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kyokomi/gotodoist/internal/api"
+	"github.com/kyokomi/gotodoist/internal/benchmark"
 	"github.com/kyokomi/gotodoist/internal/config"
 )
 
@@ -65,34 +66,54 @@ var taskCompleteCmd = &cobra.Command{
 
 // runTaskList はタスク一覧表示の実際の処理
 func runTaskList(cmd *cobra.Command, _ []string) error {
+	// ベンチマークタイマーを開始
+	timer := benchmark.NewTimer(showBenchmark)
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	timer.Step("Config loaded")
 
-	client, err := cfg.NewAPIClient()
+	// ローカルファーストクライアントを作成
+	client, err := cfg.NewLocalFirstClient(verbose)
 	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
+		return fmt.Errorf("failed to create client: %w", err)
 	}
+	defer client.Close()
+	timer.Step("Client created")
 
 	ctx := context.Background()
+
+	// クライアントを初期化（必要に応じて初期同期）
+	if err := client.Initialize(ctx); err != nil {
+		return fmt.Errorf("failed to initialize client: %w", err)
+	}
+	timer.Step("Client initialized (inc. sync check)")
 
 	// フラグから設定を取得
 	projectFilter, _ := cmd.Flags().GetString("project")
 	filterExpression, _ := cmd.Flags().GetString("filter")
 	showAll, _ := cmd.Flags().GetBool("all")
+	compare, _ := cmd.Flags().GetBool("compare")
 
-	// プロジェクト情報を取得（verbose表示用）
-	projectsMap := buildProjectsMap(ctx, client, verbose)
+	if compare {
+		return runTaskListComparison(projectFilter, filterExpression, showAll)
+	}
 
-	// セクション情報を取得
-	sectionsMap := buildSectionsMap(ctx, client)
+	// プロジェクト情報を取得（ローカル優先）
+	projectsMap := buildProjectsMapLocal(ctx, client, verbose)
+	timer.Step("Projects loaded")
+
+	// セクション情報を取得（ローカル優先）
+	sectionsMap := buildSectionsMapLocal(ctx, client)
+	timer.Step("Sections loaded")
 
 	var tasks []api.Item
 	if projectFilter != "" {
 		// プロジェクト指定がある場合
 		// まずプロジェクト名で検索を試み、見つからなければIDとして扱う
-		projectID, err := findProjectIDByName(ctx, client, projectFilter)
+		projectID, err := findProjectIDByNameLocal(ctx, client, projectFilter)
 		if err != nil {
 			return fmt.Errorf("failed to find project: %w", err)
 		}
@@ -101,12 +122,13 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
 	} else {
-		// 全タスクを取得
+		// 全タスクを取得（ローカル優先）
 		tasks, err = client.GetTasks(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
 	}
+	timer.Step("Tasks loaded")
 
 	// フィルタリング
 	tasks = filterActiveTasks(tasks, showAll)
@@ -116,9 +138,11 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 		filteredTasks := filterTasks(tasks, filterExpression)
 		tasks = filteredTasks
 	}
+	timer.Step("Tasks filtered")
 
 	if len(tasks) == 0 {
 		fmt.Println("📭 No tasks found")
+		timer.PrintResults()
 		return nil
 	}
 
@@ -127,6 +151,122 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	for i := range tasks {
 		displayTask(&tasks[i], projectsMap, sectionsMap)
 	}
+	timer.Step("Tasks displayed")
+
+	// ベンチマーク結果を表示
+	timer.PrintResults()
+
+	return nil
+}
+
+// runTaskListComparison はローカルファーストとAPIの性能比較
+func runTaskListComparison(projectFilter, filterExpression string, showAll bool) error {
+	fmt.Println("🔍 Performance Comparison: Local-First vs API Direct")
+	fmt.Println(strings.Repeat("=", 60))
+
+	// 1. ローカルファーストクライアントでの実行
+	fmt.Println("\n📦 Local-First Client:")
+	localTimer := benchmark.NewTimer(true)
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+	localTimer.Step("Config loaded")
+
+	localClient, err := cfg.NewLocalFirstClient(verbose)
+	if err != nil {
+		return fmt.Errorf("failed to create local client: %w", err)
+	}
+	defer localClient.Close()
+	localTimer.Step("Local client created")
+
+	ctx := context.Background()
+	if err := localClient.Initialize(ctx); err != nil {
+		return fmt.Errorf("failed to initialize local client: %w", err)
+	}
+	localTimer.Step("Local client initialized")
+
+	var localTasks []api.Item
+	if projectFilter != "" {
+		projectID, err := findProjectIDByNameLocal(ctx, localClient, projectFilter)
+		if err != nil {
+			return fmt.Errorf("failed to find project: %w", err)
+		}
+		localTasks, err = localClient.GetTasksByProject(ctx, projectID)
+		if err != nil {
+			return fmt.Errorf("failed to get tasks: %w", err)
+		}
+	} else {
+		localTasks, err = localClient.GetTasks(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get tasks: %w", err)
+		}
+	}
+	localTimer.Step("Tasks loaded from local")
+
+	localTasks = filterActiveTasks(localTasks, showAll)
+	if filterExpression != "" {
+		localTasks = filterTasks(localTasks, filterExpression)
+	}
+	localTimer.Step("Tasks filtered")
+
+	localDuration := localTimer.GetTotalDuration()
+
+	// 2. APIクライアントでの実行
+	fmt.Println("\n🌐 API Client:")
+	apiTimer := benchmark.NewTimer(true)
+
+	apiClient, err := cfg.NewAPIClient()
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+	apiTimer.Step("API client created")
+
+	var apiTasks []api.Item
+	if projectFilter != "" {
+		projectID, err := findProjectIDByName(ctx, apiClient, projectFilter)
+		if err != nil {
+			return fmt.Errorf("failed to find project: %w", err)
+		}
+		apiTasks, err = apiClient.GetTasksByProject(ctx, projectID)
+		if err != nil {
+			return fmt.Errorf("failed to get tasks: %w", err)
+		}
+	} else {
+		apiTasks, err = apiClient.GetTasks(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get tasks: %w", err)
+		}
+	}
+	apiTimer.Step("Tasks loaded from API")
+
+	apiTasks = filterActiveTasks(apiTasks, showAll)
+	if filterExpression != "" {
+		apiTasks = filterTasks(apiTasks, filterExpression)
+	}
+	apiTimer.Step("Tasks filtered")
+
+	apiDuration := apiTimer.GetTotalDuration()
+
+	// 結果の表示
+	localTimer.PrintResults()
+	apiTimer.PrintResults()
+
+	// 比較結果
+	fmt.Printf("📊 Comparison Results:\n")
+	fmt.Printf("%s\n", strings.Repeat("─", 50))
+	fmt.Printf("Local-First:  %s (%d tasks)\n", benchmark.FormatDuration(localDuration), len(localTasks))
+	fmt.Printf("API Direct:   %s (%d tasks)\n", benchmark.FormatDuration(apiDuration), len(apiTasks))
+
+	if localDuration < apiDuration {
+		speedup := float64(apiDuration) / float64(localDuration)
+		fmt.Printf("Speed-up:     %.1fx faster with Local-First! 🚀\n", speedup)
+	} else {
+		slowdown := float64(localDuration) / float64(apiDuration)
+		fmt.Printf("Speed-down:   %.1fx slower with Local-First 😅\n", slowdown)
+	}
+	fmt.Printf("%s\n", strings.Repeat("─", 50))
 
 	return nil
 }
@@ -540,8 +680,10 @@ func buildUpdateTaskRequestFromFlags(cmd *cobra.Command) (*api.UpdateTaskRequest
 	return req, nil
 }
 
-// buildProjectsMap はverbose表示用のプロジェクトマップを構築する
-func buildProjectsMap(ctx context.Context, client *api.Client, verbose bool) map[string]string {
+// buildProjectsMapLocal はローカルファーストクライアント用のプロジェクトマップを構築する
+func buildProjectsMapLocal(ctx context.Context, client interface {
+	GetAllProjects(ctx context.Context) ([]api.Project, error)
+}, verbose bool) map[string]string {
 	if !verbose {
 		return nil
 	}
@@ -560,8 +702,10 @@ func buildProjectsMap(ctx context.Context, client *api.Client, verbose bool) map
 	return projectsMap
 }
 
-// buildSectionsMap はセクション表示用のセクションマップを構築する
-func buildSectionsMap(ctx context.Context, client *api.Client) map[string]string {
+// buildSectionsMapLocal はローカルファーストクライアント用のセクションマップを構築する
+func buildSectionsMapLocal(ctx context.Context, client interface {
+	GetAllSections(ctx context.Context) ([]api.Section, error)
+}) map[string]string {
 	sections, err := client.GetAllSections(ctx)
 	if err != nil {
 		// セクション情報の取得に失敗してもタスク表示は続行
@@ -574,6 +718,42 @@ func buildSectionsMap(ctx context.Context, client *api.Client) map[string]string
 		sectionsMap[section.ID] = section.Name
 	}
 	return sectionsMap
+}
+
+// findProjectIDByNameLocal はローカルファーストクライアント用のプロジェクト検索
+func findProjectIDByNameLocal(ctx context.Context, client interface {
+	GetAllProjects(ctx context.Context) ([]api.Project, error)
+}, nameOrID string) (string, error) {
+	// 全プロジェクトを取得
+	projects, err := client.GetAllProjects(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+
+	nameOrID = strings.ToLower(nameOrID)
+
+	// 完全一致で検索
+	for _, project := range projects {
+		if strings.EqualFold(project.Name, nameOrID) {
+			return project.ID, nil
+		}
+	}
+
+	// 部分一致で検索
+	for _, project := range projects {
+		if strings.Contains(strings.ToLower(project.Name), nameOrID) {
+			return project.ID, nil
+		}
+	}
+
+	// IDとして直接指定されている可能性をチェック
+	for _, project := range projects {
+		if project.ID == nameOrID {
+			return project.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("project not found: %s", nameOrID)
 }
 
 // filterActiveTasks は完了済みタスクを除外する
@@ -606,6 +786,7 @@ func init() {
 	taskListCmd.Flags().StringP("project", "p", "", "filter by project name or ID")
 	taskListCmd.Flags().StringP("filter", "f", "", "filter expression (p1-p4 for priority, @label for labels, keywords for content)")
 	taskListCmd.Flags().BoolP("all", "a", false, "show all tasks including completed")
+	taskListCmd.Flags().Bool("compare", false, "compare local-first vs API performance")
 
 	// task add用のフラグ
 	taskAddCmd.Flags().StringP("project", "p", "", "project name or ID to add task to")
