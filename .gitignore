@@ -51,3 +51,8 @@ build/
 # デバッグ
 *.log
 debug
+*.pprof
+
+# 一時ファイル
+tmp/
+.air.toml

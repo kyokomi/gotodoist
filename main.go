@@ -1,3 +1,4 @@
+// Package main はgotodoistのCLIアプリケーションのエントリーポイントです
 package main
 
 import (

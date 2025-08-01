@@ -46,7 +46,7 @@ var configPathCmd = &cobra.Command{
 	Use:   "path",
 	Short: "Show configuration file path",
 	Long:  `Display the path to the configuration file.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		configDir, err := config.GetConfigDir()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting config directory: %v\n", err)
@@ -65,7 +65,7 @@ var configInitCmd = &cobra.Command{
 
 This command creates the configuration directory and file if they don't exist.
 If the configuration file already exists, it will not be overwritten.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		configDir, err := config.GetConfigDir()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting config directory: %v\n", err)

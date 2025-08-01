@@ -8,8 +8,12 @@ on:
 permissions:
   contents: write
 
+env:
+  GO_VERSION: '1.21'
+
 jobs:
-  goreleaser:
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
@@ -20,13 +24,29 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: 1.21.x
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ env.GO_VERSION }}-
+
+    - name: Run tests
+      run: make test
+
+    - name: Run lint
+      run: make lint
 
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@v6
       with:
         distribution: goreleaser
-        version: ${{ env.GITHUB_TOKEN }}
+        version: '~> v2'
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -122,7 +122,7 @@ func TestClient_newRequest(t *testing.T) {
 
 func TestClient_do_success(t *testing.T) {
 	// テスト用HTTPサーバーを作成
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"id": "test-id", "name": "test-name"}`))
@@ -166,7 +166,7 @@ func TestClient_do_success(t *testing.T) {
 
 func TestClient_do_error(t *testing.T) {
 	// エラーレスポンスを返すテスト用HTTPサーバー
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"error": "Invalid request"}`))
@@ -193,9 +193,9 @@ func TestClient_do_error(t *testing.T) {
 		t.Error("expected error but got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*Error)
 	if !ok {
-		t.Errorf("expected APIError, got %T", err)
+		t.Errorf("expected Error, got %T", err)
 	}
 
 	if apiErr.StatusCode != http.StatusBadRequest {
@@ -203,54 +203,54 @@ func TestClient_do_error(t *testing.T) {
 	}
 }
 
-func TestAPIError_Methods(t *testing.T) {
+func TestError_Methods(t *testing.T) {
 	tests := []struct {
 		name       string
 		statusCode int
 		message    string
-		checkFunc  func(*APIError) bool
+		checkFunc  func(*Error) bool
 		expected   bool
 	}{
 		{
 			name:       "IsNotFound - 404",
 			statusCode: http.StatusNotFound,
 			message:    "Not found",
-			checkFunc:  (*APIError).IsNotFound,
+			checkFunc:  (*Error).IsNotFound,
 			expected:   true,
 		},
 		{
 			name:       "IsNotFound - 400",
 			statusCode: http.StatusBadRequest,
 			message:    "Bad request",
-			checkFunc:  (*APIError).IsNotFound,
+			checkFunc:  (*Error).IsNotFound,
 			expected:   false,
 		},
 		{
 			name:       "IsUnauthorized - 401",
 			statusCode: http.StatusUnauthorized,
 			message:    "Unauthorized",
-			checkFunc:  (*APIError).IsUnauthorized,
+			checkFunc:  (*Error).IsUnauthorized,
 			expected:   true,
 		},
 		{
 			name:       "IsForbidden - 403",
 			statusCode: http.StatusForbidden,
 			message:    "Forbidden",
-			checkFunc:  (*APIError).IsForbidden,
+			checkFunc:  (*Error).IsForbidden,
 			expected:   true,
 		},
 		{
 			name:       "IsRateLimited - 429",
 			statusCode: http.StatusTooManyRequests,
 			message:    "Too many requests",
-			checkFunc:  (*APIError).IsRateLimited,
+			checkFunc:  (*Error).IsRateLimited,
 			expected:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			apiErr := &APIError{
+			apiErr := &Error{
 				StatusCode: tt.statusCode,
 				Message:    tt.message,
 			}

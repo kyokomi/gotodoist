@@ -20,7 +20,7 @@ Todoist API v1を使用したGo言語製のCLIツール
 ### 3. 開発時の注意事項
 - コード上のコメントは日本語でOK
 - go fmtでコードフォーマット必須
-- golangci-lintでlintチェック必須
+- staticcheckでlintチェック必須
 - 関数やメソッドには必ずコメントを記載
 
 ### 4. コミット規則
@@ -64,7 +64,7 @@ gotodoist/
 │   └── i18n/      # 多言語対応
 ├── locales/       # 翻訳ファイル
 ├── .github/       # GitHub Actions設定
-├── .golangci.yml  # golangci-lint設定
+├── staticcheck.conf # staticcheck設定
 ├── go.mod
 ├── go.sum
 ├── main.go
@@ -74,6 +74,47 @@ gotodoist/
 ```
 
 ## 主要コマンド
+
+### Makefileを使用した開発
+```bash
+# ヘルプ表示（利用可能なコマンド一覧）
+make help
+
+# ビルド
+make build
+
+# テスト実行
+make test
+
+# カバレッジ付きテスト
+make coverage
+
+# フォーマット
+make fmt
+
+# Lint実行
+make lint
+
+# 脆弱性チェック
+make vuln
+
+# 依存関係の更新
+make tidy
+
+# 開発モード（ファイル変更監視）
+make dev
+
+# CI用チェック（fmt, lint, test）
+make ci
+
+# リリースビルド（複数プラットフォーム）
+make release
+
+# クリーンアップ
+make clean
+```
+
+### 直接実行する場合
 ```bash
 # ビルド
 go build -o gotodoist
@@ -85,7 +126,7 @@ go test ./...
 go fmt ./...
 
 # Lint実行
-golangci-lint run
+staticcheck ./...
 
 # 依存関係の更新
 go mod tidy

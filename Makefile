@@ -1,72 +1,93 @@
-.PHONY: build test lint fmt clean run help
-
-# 変数定義
-BINARY_NAME=gotodoist
-MAIN_FILE=main.go
-GO=go
-GOLANGCI_LINT=golangci-lint
+.PHONY: all build test coverage lint fmt clean install help
 
 # デフォルトターゲット
-default: build
+all: fmt lint test build
 
-# ヘルプ
-help:
-	@echo "利用可能なコマンド:"
-	@echo "  make build    - バイナリをビルド"
-	@echo "  make test     - テストを実行"
-	@echo "  make lint     - golangci-lintを実行"
-	@echo "  make fmt      - コードをフォーマット"
-	@echo "  make clean    - ビルド成果物を削除"
-	@echo "  make run      - アプリケーションを実行"
-	@echo "  make install  - バイナリをインストール"
+# ビルド設定
+BINARY_NAME := gotodoist
+VERSION := $(shell git describe --tags --always --dirty)
+COMMIT := $(shell git rev-parse --short HEAD)
+DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS := -X 'github.com/kyokomi/gotodoist/cmd.version=$(VERSION)' \
+           -X 'github.com/kyokomi/gotodoist/cmd.commit=$(COMMIT)' \
+           -X 'github.com/kyokomi/gotodoist/cmd.date=$(DATE)'
 
 # ビルド
-build:
-	$(GO) build -o $(BINARY_NAME) $(MAIN_FILE)
+build: ## アプリケーションをビルド
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) .
+
+# インストール
+install: ## アプリケーションをインストール
+	go install -ldflags "$(LDFLAGS)" .
 
 # テスト実行
-test:
-	$(GO) test -v ./...
+test: ## テストを実行
+	go test -v -race ./...
 
 # カバレッジ付きテスト
-test-coverage:
-	$(GO) test -v -coverprofile=coverage.out ./...
-	$(GO) tool cover -html=coverage.out -o coverage.html
+coverage: ## カバレッジ付きでテストを実行
+	go test -v -race -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+
+# ベンチマーク
+bench: ## ベンチマークを実行
+	go test -bench=. -benchmem ./...
+
+# コードフォーマット
+fmt: ## コードフォーマットを実行
+	go fmt ./...
 
 # Lint実行
-lint:
-	@if ! which $(GOLANGCI_LINT) > /dev/null; then \
-		echo "golangci-lintがインストールされていません。以下のコマンドでインストールしてください:"; \
-		echo "go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
-		exit 1; \
+lint: ## staticcheckでlintを実行
+	@if ! which staticcheck > /dev/null; then \
+		echo "Installing staticcheck..."; \
+		go install honnef.co/go/tools/cmd/staticcheck@latest; \
 	fi
-	$(GOLANGCI_LINT) run
+	staticcheck ./...
 
-# フォーマット
-fmt:
-	$(GO) fmt ./...
+# 依存関係の更新
+tidy: ## go mod tidyを実行
+	go mod tidy
 
-# クリーン
-clean:
-	$(GO) clean
+# Vulnチェック
+vuln: ## 脆弱性チェックを実行
+	@if ! which govulncheck > /dev/null; then \
+		echo "Installing govulncheck..."; \
+		go install golang.org/x/vuln/cmd/govulncheck@latest; \
+	fi
+	govulncheck ./...
+
+# クリーンアップ
+clean: ## ビルド成果物を削除
 	rm -f $(BINARY_NAME)
 	rm -f coverage.out coverage.html
 
-# 実行
-run: build
-	./$(BINARY_NAME)
+# 開発サーバー（watchモード）
+dev: ## ファイル変更を監視して自動ビルド
+	@if ! which air > /dev/null; then \
+		echo "Installing air..."; \
+		go install github.com/air-verse/air@latest; \
+	fi
+	air
 
-# インストール
-install:
-	$(GO) install
+# リリースビルド（複数プラットフォーム）
+release: ## リリース用ビルドを作成
+	@mkdir -p dist
+	# macOS (Intel)
+	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)_darwin_amd64 .
+	# macOS (Apple Silicon)
+	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)_darwin_arm64 .
+	# Linux (amd64)
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)_linux_amd64 .
+	# Linux (arm64)
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)_linux_arm64 .
+	# Windows (amd64)
+	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)_windows_amd64.exe .
 
-# 依存関係の整理
-tidy:
-	$(GO) mod tidy
+# CI用のチェック（全部実行）
+ci: fmt lint test ## CI環境で実行するチェック
 
-# ベンダー依存関係
-vendor:
-	$(GO) mod vendor
-
-# すべての品質チェック
-check: fmt lint test
+# ヘルプ表示
+help: ## このヘルプメッセージを表示
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'

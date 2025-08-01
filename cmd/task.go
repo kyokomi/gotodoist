@@ -64,7 +64,7 @@ var taskCompleteCmd = &cobra.Command{
 }
 
 // runTaskList はタスク一覧表示の実際の処理
-func runTaskList(cmd *cobra.Command, args []string) error {
+func runTaskList(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
