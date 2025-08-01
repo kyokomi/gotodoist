@@ -5,8 +5,6 @@ version: "2"
 run:
   timeout: 5m
   tests: true
-  build-tags:
-    - integration
 
 linters:
   enable:
@@ -42,58 +40,3 @@ linters:
                       #       無理に改行するとかえって読みにくくなることが多い
     - gochecknoinits  # init関数使用チェックを無効化
                       # 理由: cobra CLIフレームワークではinit関数でのコマンド登録が標準パターン
-
-linters-settings:
-  govet:
-    enable:
-      - shadow
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-  gosec:
-    excludes:
-      - G404 # math/randの使用を許可
-  revive:
-    rules:
-      - name: exported
-        disabled: false
-
-issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  new: false
-  exclude-rules:
-    # テストファイルでは一部のルールを無効化
-    - path: _test\.go
-      linters:
-        - gosec
-        - dupl
-        - gocyclo
-    # コメント関連のルールを緩和（日本語コメント対応）
-    - text: "comment on exported"
-      linters:
-        - revive
-    - text: "should have comment"
-      linters:
-        - revive
-
-output:
-  format: colored-line-number
