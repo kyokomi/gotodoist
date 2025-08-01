@@ -52,9 +52,7 @@ func LoadConfig() (*Config, error) {
 	// ローカルストレージのデフォルト値
 	v.SetDefault("local_storage.enabled", defaultConfig.LocalStorage.Enabled)
 	v.SetDefault("local_storage.database_path", defaultConfig.LocalStorage.DatabasePath)
-	v.SetDefault("local_storage.auto_sync_interval", defaultConfig.LocalStorage.AutoSyncInterval)
 	v.SetDefault("local_storage.initial_sync_on_startup", defaultConfig.LocalStorage.InitialSyncOnStart)
-	v.SetDefault("local_storage.background_sync", defaultConfig.LocalStorage.BackgroundSync)
 
 	// 環境変数の設定（優先度最高）
 	v.SetEnvPrefix("TODOIST")
@@ -175,14 +173,8 @@ local_storage:
   # データベースファイルのパス
   database_path: "` + defaultConfig.LocalStorage.DatabasePath + `"
   
-  # 自動同期間隔（例: 5m, 1h）
-  auto_sync_interval: "` + defaultConfig.LocalStorage.AutoSyncInterval.String() + `"
-  
   # 起動時に初期同期を実行する
   initial_sync_on_startup: ` + fmt.Sprintf("%t", defaultConfig.LocalStorage.InitialSyncOnStart) + `
-  
-  # バックグラウンド同期を有効にする
-  background_sync: ` + fmt.Sprintf("%t", defaultConfig.LocalStorage.BackgroundSync) + `
 `
 
 	// ファイルに書き込み

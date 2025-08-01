@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/kyokomi/gotodoist/internal/api"
 	"github.com/kyokomi/gotodoist/internal/storage"
@@ -16,21 +15,18 @@ import (
 
 // Client はローカルファーストのAPIクライアント
 type Client struct {
-	apiClient      *api.Client
-	storage        *storage.SQLiteDB
-	syncManager    *sync.Manager
-	backgroundSync *sync.BackgroundSyncer
-	config         *Config
-	verbose        bool
+	apiClient   *api.Client
+	storage     *storage.SQLiteDB
+	syncManager *sync.Manager
+	config      *Config
+	verbose     bool
 }
 
 // Config はローカルストレージの設定
 type Config struct {
-	Enabled            bool          `yaml:"enabled" mapstructure:"enabled"`
-	DatabasePath       string        `yaml:"database_path" mapstructure:"database_path"`
-	AutoSyncInterval   time.Duration `yaml:"auto_sync_interval" mapstructure:"auto_sync_interval"`
-	InitialSyncOnStart bool          `yaml:"initial_sync_on_startup" mapstructure:"initial_sync_on_startup"`
-	BackgroundSync     bool          `yaml:"background_sync" mapstructure:"background_sync"`
+	Enabled            bool   `yaml:"enabled" mapstructure:"enabled"`
+	DatabasePath       string `yaml:"database_path" mapstructure:"database_path"`
+	InitialSyncOnStart bool   `yaml:"initial_sync_on_startup" mapstructure:"initial_sync_on_startup"`
 }
 
 // DefaultConfig はデフォルトのローカルストレージ設定を返す
@@ -38,9 +34,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Enabled:            true,
 		DatabasePath:       getDefaultDatabasePath(),
-		AutoSyncInterval:   5 * time.Minute,
 		InitialSyncOnStart: true,
-		BackgroundSync:     true,
 	}
 }
 
@@ -64,19 +58,12 @@ func NewClient(apiClient *api.Client, config *Config, verbose bool) (*Client, er
 	// 同期マネージャーを初期化
 	syncManager := sync.NewManager(apiClient, storage, verbose)
 
-	// バックグラウンド同期を初期化
-	var backgroundSync *sync.BackgroundSyncer
-	if config.BackgroundSync {
-		backgroundSync = sync.NewBackgroundSyncer(syncManager, config.AutoSyncInterval)
-	}
-
 	client := &Client{
-		apiClient:      apiClient,
-		storage:        storage,
-		syncManager:    syncManager,
-		backgroundSync: backgroundSync,
-		config:         config,
-		verbose:        verbose,
+		apiClient:   apiClient,
+		storage:     storage,
+		syncManager: syncManager,
+		config:      config,
+		verbose:     verbose,
 	}
 
 	return client, nil
@@ -119,10 +106,6 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 // Close はクライアントを終了する
 func (c *Client) Close() error {
-	if c.backgroundSync != nil {
-		c.backgroundSync.Stop()
-	}
-
 	if c.storage != nil {
 		return c.storage.Close()
 	}
@@ -159,17 +142,6 @@ func (c *Client) GetTasksByProject(ctx context.Context, projectID string) ([]api
 		return c.apiClient.GetTasksByProject(ctx, projectID)
 	}
 
-	// バックグラウンド同期をトリガー（非同期）
-	if c.backgroundSync != nil {
-		go func() {
-			if err := c.syncManager.AutoSync(ctx, c.config.AutoSyncInterval); err != nil {
-				if c.verbose {
-					log.Printf("Background sync failed: %v", err)
-				}
-			}
-		}()
-	}
-
 	// ローカルから高速取得
 	return c.storage.GetTasksByProject(projectID)
 }
@@ -180,17 +152,6 @@ func (c *Client) GetAllProjects(ctx context.Context) ([]api.Project, error) {
 		return c.apiClient.GetAllProjects(ctx)
 	}
 
-	// バックグラウンド同期をトリガー（非同期）
-	if c.backgroundSync != nil {
-		go func() {
-			if err := c.syncManager.AutoSync(ctx, c.config.AutoSyncInterval); err != nil {
-				if c.verbose {
-					log.Printf("Background sync failed: %v", err)
-				}
-			}
-		}()
-	}
-
 	// ローカルから高速取得
 	return c.storage.GetAllProjects()
 }
@@ -199,17 +160,6 @@ func (c *Client) GetAllProjects(ctx context.Context) ([]api.Project, error) {
 func (c *Client) GetAllSections(ctx context.Context) ([]api.Section, error) {
 	if !c.config.Enabled {
 		return c.apiClient.GetAllSections(ctx)
-	}
-
-	// バックグラウンド同期をトリガー（非同期）
-	if c.backgroundSync != nil {
-		go func() {
-			if err := c.syncManager.AutoSync(ctx, c.config.AutoSyncInterval); err != nil {
-				if c.verbose {
-					log.Printf("Background sync failed: %v", err)
-				}
-			}
-		}()
 	}
 
 	// ローカルから高速取得
@@ -238,11 +188,6 @@ func (c *Client) CreateTask(ctx context.Context, req *api.CreateTaskRequest) (*a
 				break
 			}
 		}
-
-		// バックグラウンド同期をトリガーして最新状態に同期
-		if c.backgroundSync != nil {
-			c.backgroundSync.TriggerSync(ctx)
-		}
 	}
 
 	return resp, nil
@@ -260,11 +205,6 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, req *api.UpdateT
 	if c.config.Enabled {
 		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
 			log.Printf("Failed to update sync token after task update: %v", err)
-		}
-
-		// バックグラウンド同期をトリガー
-		if c.backgroundSync != nil {
-			c.backgroundSync.TriggerSync(ctx)
 		}
 	}
 
@@ -305,11 +245,6 @@ func (c *Client) CloseTask(ctx context.Context, taskID string) (*api.SyncRespons
 	if c.config.Enabled {
 		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
 			log.Printf("Failed to update sync token after task completion: %v", err)
-		}
-
-		// バックグラウンド同期をトリガー
-		if c.backgroundSync != nil {
-			c.backgroundSync.TriggerSync(ctx)
 		}
 	}
 
