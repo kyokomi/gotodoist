@@ -42,7 +42,7 @@ fmt: ## コードフォーマットを実行
 lint: ## golangci-lintでlintを実行
 	@if ! which golangci-lint > /dev/null; then \
 		echo "Installing golangci-lint..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.61.0; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin latest; \
 	fi
 	golangci-lint run
 
