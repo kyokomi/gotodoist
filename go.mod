@@ -1,6 +1,6 @@
 module github.com/kyokomi/gotodoist
 
-go 1.21.0
+go 1.24
 
 toolchain go1.24.4
 
