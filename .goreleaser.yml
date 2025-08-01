@@ -63,17 +63,6 @@ changelog:
       - 'Merge pull request'
       - 'Merge branch'
 
-brews:
-  - repository:
-      owner: kyokomi
-      name: homebrew-gotodoist
-    directory: Formula
-    homepage: https://github.com/kyokomi/gotodoist
-    description: CLI for Todoist written in Go
-    license: MIT
-    test: |
-      system "#{bin}/gotodoist --version"
-
 nfpms:
   - id: packages
     homepage: https://github.com/kyokomi/gotodoist
