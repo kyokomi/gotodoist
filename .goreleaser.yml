@@ -1,4 +1,7 @@
-project_name: gotodoist
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+version: 2
 
 before:
   hooks:
@@ -6,9 +9,7 @@ before:
     - go mod download
 
 builds:
-  - id: gotodoist
-    binary: gotodoist
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -17,35 +18,23 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
     ldflags:
       - -s -w
       - -X github.com/kyokomi/gotodoist/cmd.version={{.Version}}
       - -X github.com/kyokomi/gotodoist/cmd.commit={{.Commit}}
       - -X github.com/kyokomi/gotodoist/cmd.date={{.Date}}
-    flags:
-      - -trimpath
 
 archives:
-  - id: gotodoist-archive
-    builds:
-      - gotodoist
+  - format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
     format_overrides:
       - goos: windows
         format: zip
-    files:
-      - README.md
-      - README_ja.md
-      - LICENSE
 
 checksum:
   name_template: 'checksums.txt'
@@ -55,70 +44,43 @@ snapshot:
 
 changelog:
   sort: asc
-  use: github
+  groups:
+    - title: Features
+      regexp: "^feat"
+      order: 0
+    - title: Bug Fixes
+      regexp: "^fix"
+      order: 1
+    - title: Documentation
+      regexp: "^docs"
+      order: 2
+    - title: Others
+      order: 999
   filters:
     exclude:
-      - '^docs:'
       - '^test:'
       - '^chore:'
-      - '^ci:'
-  groups:
-    - title: 'New Features'
-      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
-      order: 0
-    - title: 'Bug Fixes'
-      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
-      order: 1
-    - title: 'Performance Improvements'
-      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
-      order: 2
-    - title: 'Other Changes'
-      order: 999
-
-release:
-  github:
-    owner: kyokomi
-    name: gotodoist
-  draft: false
-  prerelease: auto
-  name_template: "{{.ProjectName}} {{.Version}}"
-  header: |
-    ## What's Changed
-  footer: |
-    **Full Changelog**: https://github.com/kyokomi/gotodoist/compare/{{ .PreviousTag }}...{{ .Tag }}
+      - 'Merge pull request'
+      - 'Merge branch'
 
 brews:
-  - name: gotodoist
-    repository:
+  - repository:
       owner: kyokomi
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      name: homebrew-gotodoist
     folder: Formula
-    homepage: "https://github.com/kyokomi/gotodoist"
-    description: "A command-line interface tool for managing your Todoist tasks"
-    license: "MIT"
+    homepage: https://github.com/kyokomi/gotodoist
+    description: CLI for Todoist written in Go
+    license: MIT
     test: |
       system "#{bin}/gotodoist --version"
-    install: |
-      bin.install "gotodoist"
 
 nfpms:
-  - id: gotodoist-nfpm
-    builds:
-      - gotodoist
-    package_name: gotodoist
-    vendor: kyokomi
+  - id: packages
     homepage: https://github.com/kyokomi/gotodoist
-    maintainer: kyokomi <email@kyokomi.dev>
-    description: A command-line interface tool for managing your Todoist tasks
+    description: CLI for Todoist written in Go
     license: MIT
+    maintainer: kyokomi
     formats:
       - deb
       - rpm
-    file_name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      - apk

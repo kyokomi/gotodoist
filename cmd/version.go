@@ -18,7 +18,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Long:  `Print detailed version information about gotodoist.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		fmt.Printf("gotodoist version %s\n", version)
 		if verbose || debug {
 			fmt.Printf("  commit: %s\n", commit)

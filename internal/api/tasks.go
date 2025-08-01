@@ -68,18 +68,19 @@ func (c *Client) CreateTask(ctx context.Context, req *CreateTaskRequest) (*SyncR
 	if req.Priority > 0 {
 		args["priority"] = req.Priority
 	}
-	if req.DueString != "" {
+	switch {
+	case req.DueString != "":
 		args["due"] = map[string]interface{}{
 			"string": req.DueString,
 		}
 		if req.DueLang != "" {
 			args["due"].(map[string]interface{})["lang"] = req.DueLang
 		}
-	} else if req.DueDate != "" {
+	case req.DueDate != "":
 		args["due"] = map[string]interface{}{
 			"date": req.DueDate,
 		}
-	} else if req.DueDatetime != "" {
+	case req.DueDatetime != "":
 		args["due"] = map[string]interface{}{
 			"datetime": req.DueDatetime,
 		}
@@ -131,18 +132,19 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, req *UpdateTaskR
 	if req.Priority > 0 {
 		args["priority"] = req.Priority
 	}
-	if req.DueString != "" {
+	switch {
+	case req.DueString != "":
 		args["due"] = map[string]interface{}{
 			"string": req.DueString,
 		}
 		if req.DueLang != "" {
 			args["due"].(map[string]interface{})["lang"] = req.DueLang
 		}
-	} else if req.DueDate != "" {
+	case req.DueDate != "":
 		args["due"] = map[string]interface{}{
 			"date": req.DueDate,
 		}
-	} else if req.DueDatetime != "" {
+	case req.DueDatetime != "":
 		args["due"] = map[string]interface{}{
 			"datetime": req.DueDatetime,
 		}

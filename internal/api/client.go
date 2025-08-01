@@ -132,7 +132,7 @@ func (c *Client) handleErrorResponse(resp *http.Response) error {
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	return &APIError{
+	return &Error{
 		StatusCode: resp.StatusCode,
 		Message:    errorResp.Error,
 	}
@@ -143,34 +143,34 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-// APIError はAPIエラーを表す
-type APIError struct {
+// Error はAPIエラーを表す
+type Error struct {
 	StatusCode int
 	Message    string
 }
 
 // Error はerrorインターフェースを実装する
-func (e *APIError) Error() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("API error (HTTP %d): %s", e.StatusCode, e.Message)
 }
 
 // IsNotFound はエラーが404かどうかを判定する
-func (e *APIError) IsNotFound() bool {
+func (e *Error) IsNotFound() bool {
 	return e.StatusCode == http.StatusNotFound
 }
 
 // IsUnauthorized はエラーが401かどうかを判定する
-func (e *APIError) IsUnauthorized() bool {
+func (e *Error) IsUnauthorized() bool {
 	return e.StatusCode == http.StatusUnauthorized
 }
 
 // IsForbidden はエラーが403かどうかを判定する
-func (e *APIError) IsForbidden() bool {
+func (e *Error) IsForbidden() bool {
 	return e.StatusCode == http.StatusForbidden
 }
 
 // IsRateLimited はエラーが429かどうかを判定する
-func (e *APIError) IsRateLimited() bool {
+func (e *Error) IsRateLimited() bool {
 	return e.StatusCode == http.StatusTooManyRequests
 }
 

@@ -55,14 +55,6 @@ func TestRootCommandFlags(t *testing.T) {
 	}
 }
 
-func TestGlobalVariables(t *testing.T) {
-	// Test that global variables have proper default values
-	// Note: These might be changed by other tests, so we test the type and accessibility
-	_ = verbose // Should be accessible
-	_ = debug   // Should be accessible
-	_ = lang    // Should be accessible
-}
-
 func TestRootCommandSubcommands(t *testing.T) {
 	// Test that expected subcommands are registered
 	commands := rootCmd.Commands()

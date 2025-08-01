@@ -109,7 +109,7 @@ func init() {
 }
 
 // runProjectList はプロジェクト一覧表示の実際の処理
-func runProjectList(cmd *cobra.Command, args []string) error {
+func runProjectList(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -225,11 +225,12 @@ func filterProjectsByArchiveStatus(projects []api.Project, showArchived bool) []
 
 // getProjectListTitle はプロジェクトリストのタイトルを取得する
 func getProjectListTitle(showArchived, showFavorites bool) (title, emptyMessage string) {
-	if showArchived {
+	switch {
+	case showArchived:
 		return "📦 Archived Projects", "📦 No archived projects found"
-	} else if showFavorites {
+	case showFavorites:
 		return "⭐ Favorite Projects", "⭐ No favorite projects found"
-	} else {
+	default:
 		return "📁 Projects", "📁 No projects found"
 	}
 }
