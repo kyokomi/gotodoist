@@ -70,29 +70,36 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client, err := cfg.NewAPIClient()
+	// ローカルファーストクライアントを作成
+	client, err := cfg.NewLocalFirstClient(verbose)
 	if err != nil {
-		return fmt.Errorf("failed to create API client: %w", err)
+		return fmt.Errorf("failed to create client: %w", err)
 	}
+	defer client.Close()
 
 	ctx := context.Background()
+
+	// クライアントを初期化（必要に応じて初期同期）
+	if err := client.Initialize(ctx); err != nil {
+		return fmt.Errorf("failed to initialize client: %w", err)
+	}
 
 	// フラグから設定を取得
 	projectFilter, _ := cmd.Flags().GetString("project")
 	filterExpression, _ := cmd.Flags().GetString("filter")
 	showAll, _ := cmd.Flags().GetBool("all")
 
-	// プロジェクト情報を取得（verbose表示用）
-	projectsMap := buildProjectsMap(ctx, client, verbose)
+	// プロジェクト情報を取得（ローカル優先）
+	projectsMap := buildProjectsMapLocal(ctx, client, verbose)
 
-	// セクション情報を取得
-	sectionsMap := buildSectionsMap(ctx, client)
+	// セクション情報を取得（ローカル優先）
+	sectionsMap := buildSectionsMapLocal(ctx, client)
 
 	var tasks []api.Item
 	if projectFilter != "" {
 		// プロジェクト指定がある場合
 		// まずプロジェクト名で検索を試み、見つからなければIDとして扱う
-		projectID, err := findProjectIDByName(ctx, client, projectFilter)
+		projectID, err := findProjectIDByNameLocal(ctx, client, projectFilter)
 		if err != nil {
 			return fmt.Errorf("failed to find project: %w", err)
 		}
@@ -101,7 +108,7 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}
 	} else {
-		// 全タスクを取得
+		// 全タスクを取得（ローカル優先）
 		tasks, err = client.GetTasks(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
@@ -574,6 +581,82 @@ func buildSectionsMap(ctx context.Context, client *api.Client) map[string]string
 		sectionsMap[section.ID] = section.Name
 	}
 	return sectionsMap
+}
+
+// buildProjectsMapLocal はローカルファーストクライアント用のプロジェクトマップを構築する
+func buildProjectsMapLocal(ctx context.Context, client interface {
+	GetAllProjects(ctx context.Context) ([]api.Project, error)
+}, verbose bool) map[string]string {
+	if !verbose {
+		return nil
+	}
+
+	projects, err := client.GetAllProjects(ctx)
+	if err != nil {
+		// プロジェクト情報の取得に失敗してもタスク表示は続行
+		fmt.Printf("Warning: Failed to load project names: %v\n", err)
+		return make(map[string]string)
+	}
+
+	projectsMap := make(map[string]string)
+	for _, project := range projects {
+		projectsMap[project.ID] = project.Name
+	}
+	return projectsMap
+}
+
+// buildSectionsMapLocal はローカルファーストクライアント用のセクションマップを構築する
+func buildSectionsMapLocal(ctx context.Context, client interface {
+	GetAllSections(ctx context.Context) ([]api.Section, error)
+}) map[string]string {
+	sections, err := client.GetAllSections(ctx)
+	if err != nil {
+		// セクション情報の取得に失敗してもタスク表示は続行
+		fmt.Printf("Warning: Failed to load section names: %v\n", err)
+		return make(map[string]string)
+	}
+
+	sectionsMap := make(map[string]string)
+	for _, section := range sections {
+		sectionsMap[section.ID] = section.Name
+	}
+	return sectionsMap
+}
+
+// findProjectIDByNameLocal はローカルファーストクライアント用のプロジェクト検索
+func findProjectIDByNameLocal(ctx context.Context, client interface {
+	GetAllProjects(ctx context.Context) ([]api.Project, error)
+}, nameOrID string) (string, error) {
+	// 全プロジェクトを取得
+	projects, err := client.GetAllProjects(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+
+	nameOrID = strings.ToLower(nameOrID)
+
+	// 完全一致で検索
+	for _, project := range projects {
+		if strings.EqualFold(project.Name, nameOrID) {
+			return project.ID, nil
+		}
+	}
+
+	// 部分一致で検索
+	for _, project := range projects {
+		if strings.Contains(strings.ToLower(project.Name), nameOrID) {
+			return project.ID, nil
+		}
+	}
+
+	// IDとして直接指定されている可能性をチェック
+	for _, project := range projects {
+		if project.ID == nameOrID {
+			return project.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("project not found: %s", nameOrID)
 }
 
 // filterActiveTasks は完了済みタスクを除外する
