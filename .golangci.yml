@@ -1,0 +1,42 @@
+# golangci-lint configuration file
+# Official documentation: https://golangci-lint.run/usage/configuration/
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    # デフォルトで有効なlinter（必須）
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    
+    # 追加で有効化するlinter
+    - bodyclose
+    - dupl
+    - goconst
+    - gocritic
+    - gocyclo
+    - revive
+    - goprintffuncname
+    - gosec
+    - misspell
+    - nakedret
+    - nolintlint
+    - unconvert
+    - unparam
+    - whitespace
+  disable:
+    - depguard        # プロジェクトに応じて有効化
+    - funlen          # 関数長制限を無効化
+                      # 理由: テスト関数で複数パターンをまとめて記述することが多く、
+                      #       分割すると可読性が低下する。本体コードでも適度な長さは許容する
+    - lll             # 行長制限を無効化
+                      # 理由: 現代のエディタでは長い行でも問題なく、
+                      #       無理に改行するとかえって読みにくくなることが多い
+    - gochecknoinits  # init関数使用チェックを無効化
+                      # 理由: cobra CLIフレームワークではinit関数でのコマンド登録が標準パターン

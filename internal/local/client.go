@@ -240,7 +240,7 @@ func (c *Client) Sync(ctx context.Context) error {
 }
 
 // GetSyncStatus は同期状態を取得する
-func (c *Client) GetSyncStatus() (*sync.SyncStatus, error) {
+func (c *Client) GetSyncStatus() (*sync.Status, error) {
 	if !c.config.Enabled {
 		return nil, fmt.Errorf("local storage is disabled")
 	}
