@@ -92,15 +92,6 @@ func (c *Client) Initialize(ctx context.Context) error {
 		}
 	}
 
-	// NOTE: task list高速化のためバックグラウンド同期開始を一時的に無効化
-	// バックグラウンド同期を開始
-	// if c.backgroundSync != nil {
-	// 	c.backgroundSync.Start(ctx)
-	// 	if c.verbose {
-	// 		fmt.Printf("🔄 Background sync started (interval: %v)\n", c.config.AutoSyncInterval)
-	// 	}
-	// }
-
 	return nil
 }
 
@@ -119,18 +110,6 @@ func (c *Client) GetTasks(ctx context.Context) ([]api.Item, error) {
 		// ローカルストレージが無効の場合はAPIから直接取得
 		return c.apiClient.GetTasks(ctx)
 	}
-
-	// NOTE: task list高速化のためバックグラウンド同期を一時的に無効化
-	// バックグラウンド同期をトリガー（非同期）
-	// if c.backgroundSync != nil {
-	// 	go func() {
-	// 		if err := c.syncManager.AutoSync(ctx, c.config.AutoSyncInterval); err != nil {
-	// 			if c.verbose {
-	// 				log.Printf("Background sync failed: %v", err)
-	// 			}
-	// 		}()
-	// 	}()
-	// }
 
 	// ローカルから高速取得
 	return c.storage.GetTasks()

@@ -235,35 +235,6 @@ func (m *Manager) IncrementalSync(ctx context.Context) error {
 	return nil
 }
 
-// ShouldSync は同期が必要かどうかを判定する
-func (m *Manager) ShouldSync(interval time.Duration) (bool, error) {
-	lastSync, err := m.storage.GetLastSyncTime()
-	if err != nil {
-		// 同期時刻が取得できない場合は同期が必要
-		return true, nil
-	}
-
-	return time.Since(lastSync) > interval, nil
-}
-
-// AutoSync は自動同期を実行する（必要に応じて）
-func (m *Manager) AutoSync(ctx context.Context, interval time.Duration) error {
-	shouldSync, err := m.ShouldSync(interval)
-	if err != nil {
-		return fmt.Errorf("failed to check if sync needed: %w", err)
-	}
-
-	if !shouldSync {
-		if m.verbose {
-			lastSync, _ := m.storage.GetLastSyncTime()
-			fmt.Printf("⏰ Sync not needed (last: %s)\n", lastSync.Format("15:04:05"))
-		}
-		return nil
-	}
-
-	return m.IncrementalSync(ctx)
-}
-
 // GetSyncStatus は同期状態の情報を返す
 func (m *Manager) GetSyncStatus() (*SyncStatus, error) {
 	initialDone, err := m.storage.IsInitialSyncDone()
