@@ -75,14 +75,14 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body inter
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+			return nil, fmt.Errorf("failed to marshal request body for %s %s: %w", method, path, err)
 		}
 		buf = bytes.NewBuffer(jsonBody)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request for %s %s: %w", method, u.String(), err)
 	}
 
 	// ヘッダーを設定
@@ -99,7 +99,7 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body inter
 func (c *Client) do(req *http.Request, v interface{}) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("HTTP request failed: %w", err)
+		return fmt.Errorf("HTTP request failed for %s %s: %w", req.Method, req.URL.String(), err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -113,7 +113,7 @@ func (c *Client) do(req *http.Request, v interface{}) error {
 	// レスポンスボディを読み取り
 	if v != nil {
 		if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
-			return fmt.Errorf("failed to decode response: %w", err)
+			return fmt.Errorf("failed to decode response from %s %s: %w", req.Method, req.URL.String(), err)
 		}
 	}
 
