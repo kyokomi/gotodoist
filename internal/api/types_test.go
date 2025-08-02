@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTodoistTime_UnmarshalJSON(t *testing.T) {
@@ -70,20 +73,13 @@ func TestTodoistTime_UnmarshalJSON(t *testing.T) {
 			err := json.Unmarshal([]byte(tt.input), &todoistTime)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error but got nil")
-				}
+				assert.Error(t, err, "エラーが期待されますが、nilが返されました")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if !todoistTime.Equal(tt.expected) {
-				t.Errorf("expected time %v, got %v", tt.expected, todoistTime.Time)
-			}
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			assert.True(t, todoistTime.Equal(tt.expected),
+				"期待される時間 %v と実際の時間 %v が一致しません", tt.expected, todoistTime.Time)
 		})
 	}
 }
@@ -109,14 +105,8 @@ func TestTodoistTime_MarshalJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := json.Marshal(tt.time)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if string(result) != tt.expected {
-				t.Errorf("expected %s, got %s", tt.expected, string(result))
-			}
+			require.NoError(t, err, "JSONマーシャリングで予期しないエラーが発生しました")
+			assert.Equal(t, tt.expected, string(result), "マーシャリング結果が期待値と異なります")
 		})
 	}
 }

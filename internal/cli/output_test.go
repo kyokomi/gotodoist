@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOutput_Successf(t *testing.T) {
@@ -13,12 +15,8 @@ func TestOutput_Successf(t *testing.T) {
 	output.Successf("Task created successfully")
 
 	expected := "✅ Task created successfully\n"
-	if stdout.String() != expected {
-		t.Errorf("Successf() stdout = %q, want %q", stdout.String(), expected)
-	}
-	if stderr.String() != "" {
-		t.Errorf("Successf() stderr = %q, want empty", stderr.String())
-	}
+	assert.Equal(t, expected, stdout.String(), "Successf()のstdout出力が期待値と異なります")
+	assert.Empty(t, stderr.String(), "Successf()のstderr出力が空ではありません")
 }
 
 func TestOutput_Warningf(t *testing.T) {
@@ -28,12 +26,8 @@ func TestOutput_Warningf(t *testing.T) {
 	output.Warningf("failed to close repository")
 
 	expected := "⚠️  Warning: failed to close repository\n"
-	if stderr.String() != expected {
-		t.Errorf("Warningf() stderr = %q, want %q", stderr.String(), expected)
-	}
-	if stdout.String() != "" {
-		t.Errorf("Warningf() stdout = %q, want empty", stdout.String())
-	}
+	assert.Equal(t, expected, stderr.String(), "Warningf()のstderr出力が期待値と異なります")
+	assert.Empty(t, stdout.String(), "Warningf()のstdout出力が空ではありません")
 }
 
 func TestOutput_Errorf(t *testing.T) {
@@ -43,12 +37,8 @@ func TestOutput_Errorf(t *testing.T) {
 	output.Errorf("loading configuration failed")
 
 	expected := "❌ Error: loading configuration failed\n"
-	if stderr.String() != expected {
-		t.Errorf("Errorf() stderr = %q, want %q", stderr.String(), expected)
-	}
-	if stdout.String() != "" {
-		t.Errorf("Errorf() stdout = %q, want empty", stdout.String())
-	}
+	assert.Equal(t, expected, stderr.String(), "Errorf()のstderr出力が期待値と異なります")
+	assert.Empty(t, stdout.String(), "Errorf()のstdout出力が空ではありません")
 }
 
 func TestOutput_Debugf_Verbose(t *testing.T) {
@@ -58,12 +48,8 @@ func TestOutput_Debugf_Verbose(t *testing.T) {
 	output.Debugf("configuration loaded successfully")
 
 	expected := "🔍 Debug: configuration loaded successfully\n"
-	if stderr.String() != expected {
-		t.Errorf("Debugf() stderr = %q, want %q", stderr.String(), expected)
-	}
-	if stdout.String() != "" {
-		t.Errorf("Debugf() stdout = %q, want empty", stdout.String())
-	}
+	assert.Equal(t, expected, stderr.String(), "Debugf()のstderr出力が期待値と異なります")
+	assert.Empty(t, stdout.String(), "Debugf()のstdout出力が空ではありません")
 }
 
 func TestOutput_Debugf_NotVerbose(t *testing.T) {
@@ -72,12 +58,8 @@ func TestOutput_Debugf_NotVerbose(t *testing.T) {
 
 	output.Debugf("configuration loaded successfully")
 
-	if stderr.String() != "" {
-		t.Errorf("Debugf() stderr = %q, want empty", stderr.String())
-	}
-	if stdout.String() != "" {
-		t.Errorf("Debugf() stdout = %q, want empty", stdout.String())
-	}
+	assert.Empty(t, stderr.String(), "Debugf()のstderr出力が空ではありません")
+	assert.Empty(t, stdout.String(), "Debugf()のstdout出力が空ではありません")
 }
 
 func TestOutput_Listf(t *testing.T) {
@@ -87,12 +69,8 @@ func TestOutput_Listf(t *testing.T) {
 	output.Listf("Found %d task(s)", 3)
 
 	expected := "📝 Found 3 task(s)\n"
-	if stdout.String() != expected {
-		t.Errorf("Listf() stdout = %q, want %q", stdout.String(), expected)
-	}
-	if stderr.String() != "" {
-		t.Errorf("Listf() stderr = %q, want empty", stderr.String())
-	}
+	assert.Equal(t, expected, stdout.String(), "Listf()のstdout出力が期待値と異なります")
+	assert.Empty(t, stderr.String(), "Listf()のstderr出力が空ではありません")
 }
 
 func TestOutput_Projectf(t *testing.T) {
@@ -102,9 +80,7 @@ func TestOutput_Projectf(t *testing.T) {
 	output.Projectf("Created project: %s", "New Project")
 
 	expected := "📁 Created project: New Project\n"
-	if stdout.String() != expected {
-		t.Errorf("Projectf() stdout = %q, want %q", stdout.String(), expected)
-	}
+	assert.Equal(t, expected, stdout.String(), "Projectf()のstdout出力が期待値と異なります")
 }
 
 func TestOutput_Taskf(t *testing.T) {
@@ -114,9 +90,7 @@ func TestOutput_Taskf(t *testing.T) {
 	output.Taskf("Task completed: %s", "Buy groceries")
 
 	expected := "📋 Task completed: Buy groceries\n"
-	if stdout.String() != expected {
-		t.Errorf("Taskf() stdout = %q, want %q", stdout.String(), expected)
-	}
+	assert.Equal(t, expected, stdout.String(), "Taskf()のstdout出力が期待値と異なります")
 }
 
 func TestOutput_Syncf(t *testing.T) {
@@ -126,9 +100,7 @@ func TestOutput_Syncf(t *testing.T) {
 	output.Syncf("Synchronization completed")
 
 	expected := "🔄 Synchronization completed\n"
-	if stdout.String() != expected {
-		t.Errorf("Syncf() stdout = %q, want %q", stdout.String(), expected)
-	}
+	assert.Equal(t, expected, stdout.String(), "Syncf()のstdout出力が期待値と異なります")
 }
 
 func TestOutput_Plainf(t *testing.T) {
@@ -138,9 +110,7 @@ func TestOutput_Plainf(t *testing.T) {
 	output.Plainf("   ID: %s", "12345")
 
 	expected := "   ID: 12345\n"
-	if stdout.String() != expected {
-		t.Errorf("Plainf() stdout = %q, want %q", stdout.String(), expected)
-	}
+	assert.Equal(t, expected, stdout.String(), "Plainf()のstdout出力が期待値と異なります")
 }
 
 func TestOutput_PlainNoNewlinef(t *testing.T) {
@@ -150,9 +120,7 @@ func TestOutput_PlainNoNewlinef(t *testing.T) {
 	output.PlainNoNewlinef("Enter your choice: ")
 
 	expected := "Enter your choice: "
-	if stdout.String() != expected {
-		t.Errorf("PlainNoNewlinef() stdout = %q, want %q", stdout.String(), expected)
-	}
+	assert.Equal(t, expected, stdout.String(), "PlainNoNewlinef()のstdout出力が期待値と異なります")
 }
 
 func TestOutput_Infof(t *testing.T) {
@@ -162,38 +130,24 @@ func TestOutput_Infof(t *testing.T) {
 	output.Infof("Configuration file: %s", "/path/to/config.yaml")
 
 	expected := "Configuration file: /path/to/config.yaml\n"
-	if stdout.String() != expected {
-		t.Errorf("Infof() stdout = %q, want %q", stdout.String(), expected)
-	}
+	assert.Equal(t, expected, stdout.String(), "Infof()のstdout出力が期待値と異なります")
 }
 
 func TestNew(t *testing.T) {
 	output := New(true)
 
-	if output.verbose != true {
-		t.Errorf("New() verbose = %v, want %v", output.verbose, true)
-	}
-	if output.stdout == nil {
-		t.Error("New() stdout should not be nil")
-	}
-	if output.stderr == nil {
-		t.Error("New() stderr should not be nil")
-	}
+	assert.Equal(t, true, output.verbose, "New()のverbose設定が期待値と異なります")
+	assert.NotNil(t, output.stdout, "New()のstdoutがnilです")
+	assert.NotNil(t, output.stderr, "New()のstderrがnilです")
 }
 
 func TestNewWithWriters(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	output := NewWithWriters(&stdout, &stderr, false)
 
-	if output.verbose != false {
-		t.Errorf("NewWithWriters() verbose = %v, want %v", output.verbose, false)
-	}
-	if output.stdout != &stdout {
-		t.Error("NewWithWriters() stdout should match provided writer")
-	}
-	if output.stderr != &stderr {
-		t.Error("NewWithWriters() stderr should match provided writer")
-	}
+	assert.Equal(t, false, output.verbose, "NewWithWriters()のverbose設定が期待値と異なります")
+	assert.Equal(t, &stdout, output.stdout, "NewWithWriters()のstdoutが指定したwriterと一致しません")
+	assert.Equal(t, &stderr, output.stderr, "NewWithWriters()のstderrが指定したwriterと一致しません")
 }
 
 func TestOutput_AllMethodsHaveCorrectOutputStreams(t *testing.T) {
@@ -289,22 +243,14 @@ func TestOutput_AllMethodsHaveCorrectOutputStreams(t *testing.T) {
 			hasStdout := stdout.Len() > 0
 			hasStderr := stderr.Len() > 0
 
-			if hasStdout != tt.expectStdout {
-				t.Errorf("%s: stdout output = %v, want %v (content: %q)",
-					tt.name, hasStdout, tt.expectStdout, stdout.String())
-			}
-			if hasStderr != tt.expectStderr {
-				t.Errorf("%s: stderr output = %v, want %v (content: %q)",
-					tt.name, hasStderr, tt.expectStderr, stderr.String())
-			}
+			assert.Equal(t, tt.expectStdout, hasStdout, "%s: stdout出力の有無が期待値と異なります (content: %q)", tt.name, stdout.String())
+			assert.Equal(t, tt.expectStderr, hasStderr, "%s: stderr出力の有無が期待値と異なります (content: %q)", tt.name, stderr.String())
 
-			if tt.expectStdout && !strings.HasPrefix(stdout.String(), tt.expectedPrefix) {
-				t.Errorf("%s: stdout should start with %q, got %q",
-					tt.name, tt.expectedPrefix, stdout.String())
+			if tt.expectStdout {
+				assert.True(t, strings.HasPrefix(stdout.String(), tt.expectedPrefix), "%s: stdoutが期待されるプレフィックスで始まっていません (expected: %q, got: %q)", tt.name, tt.expectedPrefix, stdout.String())
 			}
-			if tt.expectStderr && !strings.HasPrefix(stderr.String(), tt.expectedPrefix) {
-				t.Errorf("%s: stderr should start with %q, got %q",
-					tt.name, tt.expectedPrefix, stderr.String())
+			if tt.expectStderr {
+				assert.True(t, strings.HasPrefix(stderr.String(), tt.expectedPrefix), "%s: stderrが期待されるプレフィックスで始まっていません (expected: %q, got: %q)", tt.name, tt.expectedPrefix, stderr.String())
 			}
 		})
 	}

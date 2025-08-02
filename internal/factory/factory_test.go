@@ -5,6 +5,8 @@ import (
 
 	"github.com/kyokomi/gotodoist/internal/config"
 	"github.com/kyokomi/gotodoist/internal/repository"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAPIClient(t *testing.T) {
@@ -44,20 +46,12 @@ func TestNewAPIClient(t *testing.T) {
 			client, err := NewAPIClient(cfg)
 
 			if tt.wantError {
-				if err == nil {
-					t.Error("expected error but got nil")
-				}
+				assert.Error(t, err, "エラーが期待されますが、nilが返されました")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if client == nil {
-				t.Error("expected client but got nil")
-			}
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			assert.NotNil(t, client, "クライアントが期待されますが、nilが返されました")
 		})
 	}
 }
@@ -69,15 +63,8 @@ func TestNewAPIClient_WithCustomBaseURL(t *testing.T) {
 	}
 
 	client, err := NewAPIClient(cfg)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-
-	if client == nil {
-		t.Error("expected client but got nil")
-		return
-	}
+	require.NoError(t, err, "予期しないエラーが発生しました")
+	assert.NotNil(t, client, "クライアントが期待されますが、nilが返されました")
 
 	// BaseURL が正しく設定されているかは、APIクライアント内部の実装詳細なので
 	// ここでは単純にエラーが発生しないことを確認
@@ -90,14 +77,8 @@ func TestNewAPIClient_WithEmptyBaseURL(t *testing.T) {
 	}
 
 	client, err := NewAPIClient(cfg)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-
-	if client == nil {
-		t.Error("expected client but got nil")
-	}
+	require.NoError(t, err, "予期しないエラーが発生しました")
+	assert.NotNil(t, client, "クライアントが期待されますが、nilが返されました")
 }
 
 func TestNewRepository(t *testing.T) {
@@ -109,15 +90,8 @@ func TestNewRepository(t *testing.T) {
 	}
 
 	repo, err := NewRepository(cfg, false)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-
-	if repo == nil {
-		t.Error("expected repository but got nil")
-		return
-	}
+	require.NoError(t, err, "予期しないエラーが発生しました")
+	assert.NotNil(t, repo, "リポジトリが期待されますが、nilが返されました")
 
 	// Repositoryが正常に作成されたことを確認
 	defer func() {

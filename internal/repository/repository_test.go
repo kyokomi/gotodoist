@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/kyokomi/gotodoist/internal/api"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestFindProjectIDByName_Logic はプロジェクト検索ロジックの単体テスト
@@ -57,20 +59,12 @@ func TestFindProjectIDByName_Logic(t *testing.T) {
 			result, err := findProjectIDByNameLogic(testProjects, tt.nameOrID)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("期待されたエラーが発生しませんでした")
-				}
+				assert.Error(t, err, "期待されたエラーが発生しませんでした")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("予期しないエラー: %v", err)
-				return
-			}
-
-			if result != tt.expectedID {
-				t.Errorf("findProjectIDByNameLogic() = %v, want %v", result, tt.expectedID)
-			}
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			assert.Equal(t, tt.expectedID, result, "findProjectIDByNameLogic()結果が期待値と異なります")
 		})
 	}
 }

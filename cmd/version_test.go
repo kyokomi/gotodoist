@@ -2,27 +2,17 @@ package cmd
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const cmdVersion = "version"
 
 func TestVersionCommandDefinition(t *testing.T) {
-	if versionCmd.Use != cmdVersion {
-		t.Errorf("expected Use to be '%s', got %s", cmdVersion, versionCmd.Use)
-	}
-
-	if versionCmd.Short != "Print version information" {
-		t.Errorf("expected Short to be 'Print version information', got %s", versionCmd.Short)
-	}
-
-	if versionCmd.Run == nil {
-		t.Error("expected Run function to be defined")
-	}
-
-	// ArgsやFlagsがないことを確認
-	if versionCmd.Args != nil {
-		t.Error("version command should not require arguments")
-	}
+	assert.Equal(t, cmdVersion, versionCmd.Use, "versionコマンドのUseが期待値と異なります")
+	assert.Equal(t, "Print version information", versionCmd.Short, "versionコマンドのShortが期待値と異なります")
+	assert.NotNil(t, versionCmd.Run, "versionコマンドのRun関数が定義されていません")
+	assert.Nil(t, versionCmd.Args, "versionコマンドは引数を受け取るべきではありません")
 }
 
 func TestVersionCommand_Integration(t *testing.T) {
@@ -35,7 +25,5 @@ func TestVersionCommand_Integration(t *testing.T) {
 		}
 	}
 
-	if !found {
-		t.Error("version command should be added to root command")
-	}
+	assert.True(t, found, "versionコマンドがrootコマンドに追加されていません")
 }

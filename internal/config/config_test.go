@@ -3,8 +3,10 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -15,21 +17,10 @@ const (
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
 
-	if config == nil {
-		t.Fatal("DefaultConfig() returned nil")
-	}
-
-	if config.BaseURL != expectedBaseURL {
-		t.Errorf("expected BaseURL to be %s, got %s", expectedBaseURL, config.BaseURL)
-	}
-
-	if config.APIToken != "" {
-		t.Errorf("expected APIToken to be empty, got %s", config.APIToken)
-	}
-
-	if config.Language != expectedLanguage {
-		t.Errorf("expected Language to be %q, got %s", expectedLanguage, config.Language)
-	}
+	require.NotNil(t, config, "DefaultConfig()がnilを返しました")
+	assert.Equal(t, expectedBaseURL, config.BaseURL, "BaseURLが期待値と異なります")
+	assert.Empty(t, config.APIToken, "APITokenが空ではありません")
+	assert.Equal(t, expectedLanguage, config.Language, "Languageが期待値と異なります")
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -56,9 +47,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// テスト用の一時ディレクトリを作成
 			tempDir, err := os.MkdirTemp("", "gotodoist-test")
-			if err != nil {
-				t.Fatalf("failed to create temp dir: %v", err)
-			}
+			require.NoError(t, err, "一時ディレクトリの作成に失敗しました")
 			defer func() {
 				_ = os.RemoveAll(tempDir)
 			}()
@@ -92,39 +81,22 @@ func TestLoadConfig(t *testing.T) {
 			config, err := LoadConfig()
 
 			if tt.wantError {
-				if err == nil {
-					t.Error("expected error but got nil")
-				}
+				assert.Error(t, err, "エラーが期待されますが、nilが返されました")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			require.NotNil(t, config, "LoadConfig()がnil設定を返しました")
 
-			if config == nil {
-				t.Fatal("LoadConfig() returned nil config")
-			}
-
-			if config.APIToken != tt.wantToken {
-				t.Errorf("expected APIToken %s, got %s", tt.wantToken, config.APIToken)
-			}
-
-			if config.BaseURL != expectedBaseURL {
-				t.Errorf("expected BaseURL to be %s, got %s", expectedBaseURL, config.BaseURL)
-			}
-
-			if config.Language != expectedLanguage {
-				t.Errorf("expected Language to be %q, got %s", expectedLanguage, config.Language)
-			}
+			assert.Equal(t, tt.wantToken, config.APIToken, "APITokenが期待値と異なります")
+			assert.Equal(t, expectedBaseURL, config.BaseURL, "BaseURLが期待値と異なります")
+			assert.Equal(t, expectedLanguage, config.Language, "Languageが期待値と異なります")
 
 			// 設定ファイルが自動生成されているかチェック
 			configDir := filepath.Join(tempDir, "gotodoist")
 			configPath := filepath.Join(configDir, "config.yaml")
-			if _, err := os.Stat(configPath); os.IsNotExist(err) {
-				t.Error("config file was not generated")
-			}
+			_, err = os.Stat(configPath)
+			assert.False(t, os.IsNotExist(err), "設定ファイルが生成されていません")
 		})
 	}
 }
@@ -167,15 +139,8 @@ func TestGetConfigDir(t *testing.T) {
 			}
 
 			configDir, err := GetConfigDir()
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if configDir == "" {
-				t.Error("GetConfigDir() returned empty string")
-				return
-			}
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			assert.NotEmpty(t, configDir, "GetConfigDir()が空文字を返しました")
 
 			// パスの期待値を計算
 			var expectedDir string
@@ -183,15 +148,11 @@ func TestGetConfigDir(t *testing.T) {
 				expectedDir = filepath.Join(tt.xdgConfigHome, "gotodoist")
 			} else {
 				homeDir, err := os.UserHomeDir()
-				if err != nil {
-					t.Fatalf("failed to get home directory: %v", err)
-				}
+				require.NoError(t, err, "ホームディレクトリの取得に失敗しました")
 				expectedDir = filepath.Join(homeDir, ".config", "gotodoist")
 			}
 
-			if configDir != expectedDir {
-				t.Errorf("expected config dir %s, got %s", expectedDir, configDir)
-			}
+			assert.Equal(t, expectedDir, configDir, "configディレクトリが期待値と異なります")
 		})
 	}
 }
@@ -199,9 +160,7 @@ func TestGetConfigDir(t *testing.T) {
 func TestGenerateConfigFile(t *testing.T) {
 	// テスト用の一時ディレクトリを作成
 	tempDir, err := os.MkdirTemp("", "gotodoist-test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
+	require.NoError(t, err, "一時ディレクトリの作成に失敗しました")
 	defer func() {
 		_ = os.RemoveAll(tempDir)
 	}()
@@ -211,30 +170,21 @@ func TestGenerateConfigFile(t *testing.T) {
 
 	// 設定ファイルを生成
 	err = generateConfigFile(configPath, defaultConfig)
-	if err != nil {
-		t.Errorf("generateConfigFile() failed: %v", err)
-		return
-	}
+	require.NoError(t, err, "generateConfigFile()が失敗しました")
 
 	// ファイルが作成されたかチェック
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		t.Error("config file was not created")
-		return
-	}
+	_, err = os.Stat(configPath)
+	assert.False(t, os.IsNotExist(err), "設定ファイルが作成されていません")
 
 	// ファイルの内容をチェック
 	content, err := os.ReadFile(filepath.Clean(configPath))
-	if err != nil {
-		t.Errorf("failed to read config file: %v", err)
-		return
-	}
+	require.NoError(t, err, "設定ファイルの読み込みに失敗しました")
 
 	contentStr := string(content)
 
 	// ディレクトリが作成されていることを確認
-	if _, err := os.Stat(filepath.Dir(configPath)); os.IsNotExist(err) {
-		t.Error("config directory was not created")
-	}
+	_, err = os.Stat(filepath.Dir(configPath))
+	assert.False(t, os.IsNotExist(err), "設定ディレクトリが作成されていません")
 
 	// 基本的な設定項目が含まれているかチェック
 	expectedContents := []string{
@@ -244,18 +194,14 @@ func TestGenerateConfigFile(t *testing.T) {
 	}
 
 	for _, expected := range expectedContents {
-		if !strings.Contains(contentStr, expected) {
-			t.Errorf("config file should contain %q, but got:\n%s", expected, contentStr)
-		}
+		assert.Contains(t, contentStr, expected, "設定ファイルに %q が含まれていません", expected)
 	}
 }
 
 func TestLoadConfigFromFile(t *testing.T) {
 	// テスト用の一時ディレクトリを作成
 	tempDir, err := os.MkdirTemp("", "gotodoist-test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
+	require.NoError(t, err, "一時ディレクトリの作成に失敗しました")
 	defer func() {
 		_ = os.RemoveAll(tempDir)
 	}()
@@ -284,9 +230,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	configDir := filepath.Join(tempDir, "gotodoist")
 	configPath := filepath.Join(configDir, "config.yaml")
 	err = os.MkdirAll(configDir, 0750)
-	if err != nil {
-		t.Fatalf("failed to create config dir: %v", err)
-	}
+	require.NoError(t, err, "設定ディレクトリの作成に失敗しました")
 
 	configContent := `# gotodoist CLI設定ファイル
 api_token: "test-file-token"
@@ -294,27 +238,14 @@ base_url: "https://api.todoist.com/api/v1"
 language: "ja"
 `
 	err = os.WriteFile(configPath, []byte(configContent), 0600)
-	if err != nil {
-		t.Fatalf("failed to write config file: %v", err)
-	}
+	require.NoError(t, err, "設定ファイルの書き込みに失敗しました")
 
 	// 設定を読み込み
 	config, err := LoadConfig()
-	if err != nil {
-		t.Errorf("LoadConfig() failed: %v", err)
-		return
-	}
+	require.NoError(t, err, "LoadConfig()が失敗しました")
 
 	// 設定ファイルからの値が正しく読み込まれているかチェック
-	if config.APIToken != "test-file-token" {
-		t.Errorf("expected APIToken 'test-file-token', got %s", config.APIToken)
-	}
-
-	if config.Language != "ja" {
-		t.Errorf("expected Language 'ja', got %s", config.Language)
-	}
-
-	if config.BaseURL != "https://api.todoist.com/api/v1" {
-		t.Errorf("expected BaseURL 'https://api.todoist.com/api/v1', got %s", config.BaseURL)
-	}
+	assert.Equal(t, "test-file-token", config.APIToken, "APITokenが期待値と異なります")
+	assert.Equal(t, "ja", config.Language, "Languageが期待値と異なります")
+	assert.Equal(t, "https://api.todoist.com/api/v1", config.BaseURL, "BaseURLが期待値と異なります")
 }

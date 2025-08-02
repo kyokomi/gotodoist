@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/kyokomi/gotodoist/internal/api"
 )
@@ -115,9 +116,7 @@ func TestBuildUpdateTaskRequestFromFlags(t *testing.T) {
 			// Set flag values
 			for key, value := range tt.flags {
 				err := cmd.Flags().Set(key, value)
-				if err != nil {
-					t.Fatalf("failed to set flag %s: %v", key, err)
-				}
+				require.NoError(t, err, "フラグ %s の設定に失敗しました", key)
 			}
 
 			// Get parameters from command flags
@@ -131,25 +130,15 @@ func TestBuildUpdateTaskRequestFromFlags(t *testing.T) {
 
 			// Check error expectations
 			if tt.wantError {
-				if err == nil {
-					t.Errorf("expected error but got nil")
-					return
-				}
-				if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				assert.Error(t, err, "エラーが期待されますが、nilが返されました")
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "エラーメッセージが期待値と異なります")
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			// Check result
-			if !equalUpdateTaskRequest(got, tt.want) {
-				t.Errorf("got %+v, want %+v", got, tt.want)
-			}
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			assert.True(t, equalUpdateTaskRequest(got, tt.want), "UpdateTaskRequest結果が期待値と異なります\ngot: %+v\nwant: %+v", got, tt.want)
 		})
 	}
 }
@@ -238,14 +227,11 @@ func TestFilterActiveTasks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := filterActiveTasks(tt.tasks, tt.showAll)
 
-			if len(got) != len(tt.want) {
-				t.Errorf("got %d tasks, want %d tasks", len(got), len(tt.want))
-				return
-			}
+			assert.Len(t, got, len(tt.want), "タスク数が期待値と異なります")
 
 			for i, task := range got {
-				if task.ID != tt.want[i].ID {
-					t.Errorf("task[%d]: got ID %s, want ID %s", i, task.ID, tt.want[i].ID)
+				if i < len(tt.want) {
+					assert.Equal(t, tt.want[i].ID, task.ID, "タスク[%d]のIDが期待値と異なります", i)
 				}
 			}
 		})
