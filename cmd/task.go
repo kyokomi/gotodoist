@@ -10,6 +10,7 @@ import (
 
 	"github.com/kyokomi/gotodoist/internal/api"
 	"github.com/kyokomi/gotodoist/internal/config"
+	"github.com/kyokomi/gotodoist/internal/factory"
 	"github.com/kyokomi/gotodoist/internal/repository"
 )
 
@@ -531,7 +532,7 @@ func setupTaskExecution(ctx context.Context) (*taskExecutor, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	repo, err := cfg.NewRepository(verbose)
+	repo, err := factory.NewRepository(cfg, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Repository: %w", err)
 	}
