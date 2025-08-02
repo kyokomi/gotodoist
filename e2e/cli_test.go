@@ -595,7 +595,7 @@ func countProjectsFromOutput(output string) int {
 // findTaskIDByContent はタスク内容からIDを取得する（verbose出力から）
 func findTaskIDByContent(binaryPath string, env []string, projectName, taskContent string) (string, error) {
 	// verbose出力でタスク一覧を取得（IDが表示される）
-	cmd := exec.Command(binaryPath, "task", "list", "-p", projectName, "-v")
+	cmd := exec.Command(binaryPath, "task", "list", "-p", projectName, "-v", "-f", taskContent)
 	cmd.Env = env
 	output, err := cmd.Output()
 	if err != nil {
@@ -604,33 +604,12 @@ func findTaskIDByContent(binaryPath string, env []string, projectName, taskConte
 
 	// 出力をパースしてタスクIDを抽出
 	lines := strings.Split(string(output), "\n")
-	var currentTaskContent string
-	var pendingTaskContent string
-
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		// タスク内容の行（⚪ で始まる）
-		if strings.HasPrefix(line, "⚪") {
-			// "⚪ Task-1-20250802-173504" からタスク内容を抽出
-			if strings.Contains(line, " ") {
-				pendingTaskContent = strings.TrimSpace(line[2:]) // "⚪ " を除去
-			}
-		}
-
-		// IDの行（"   ID: " で始まる）
-		if strings.HasPrefix(line, "   ID: ") {
-			// 前のタスク内容をコミット
-			currentTaskContent = pendingTaskContent
-			currentTaskID := strings.TrimSpace(line[7:]) // "   ID: " を除去
-
-			// 探しているタスクが見つかったらIDを返す
-			if currentTaskContent == taskContent {
-				return currentTaskID, nil
-			}
-
-			// 次のタスクのために現在のタスク内容をクリア
-			pendingTaskContent = ""
+		if strings.HasPrefix(line, "ID: ") {
+			currentTaskID := strings.ReplaceAll(line, "ID: ", "") // "   ID: " を除去
+			return currentTaskID, nil
 		}
 	}
 
