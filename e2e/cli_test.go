@@ -37,8 +37,9 @@ func TestProjectLifecycle(t *testing.T) {
 		// ローカルストレージをリセット
 		cmd := exec.Command(binaryPath, "sync", "reset", "-f")
 		cmd.Env = env
-		if output, err := cmd.Output(); err != nil {
-			t.Fatalf("sync reset失敗: %v", err)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("sync reset失敗: %v\n出力: %s", err, string(output))
 		} else {
 			t.Logf("sync reset完了: %s", strings.TrimSpace(string(output)))
 		}
@@ -55,11 +56,11 @@ func TestProjectLifecycle(t *testing.T) {
 		// ベースラインとなるプロジェクト一覧を取得
 		cmd = exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
-		output, err := cmd.Output()
+		projectOutput, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("ベースラインプロジェクト一覧の取得に失敗: %v", err)
 		}
-		baselineProjectsA = string(output)
+		baselineProjectsA = string(projectOutput)
 
 		projectCount := countProjectsFromOutput(baselineProjectsA)
 		t.Logf("ベースライン時のプロジェクト数: %d", projectCount)
@@ -72,11 +73,11 @@ func TestProjectLifecycle(t *testing.T) {
 		// ベースラインとなるタスク一覧を取得
 		cmd = exec.Command(binaryPath, "task", "list")
 		cmd.Env = env
-		output, err = cmd.Output()
+		taskOutput, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("ベースラインタスク一覧の取得に失敗: %v", err)
 		}
-		baselineTasksA = string(output)
+		baselineTasksA = string(taskOutput)
 
 		t.Logf("ベースラインデータA取得完了")
 		t.Logf("- プロジェクト数: %d", projectCount)
