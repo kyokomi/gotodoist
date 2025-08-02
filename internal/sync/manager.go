@@ -184,6 +184,17 @@ func (m *Manager) hasNoChanges(resp *api.SyncResponse) bool {
 
 // applyIncrementalChanges はトランザクション内で差分変更を適用する
 func (m *Manager) applyIncrementalChanges(resp *api.SyncResponse) error {
+	if m.verbose {
+		fmt.Printf("🔄 Applying incremental changes:\n")
+		fmt.Printf("  - Projects: %d\n", len(resp.Projects))
+		fmt.Printf("  - Sections: %d\n", len(resp.Sections))
+		fmt.Printf("  - Tasks: %d\n", len(resp.Items))
+		if len(resp.Projects) > 0 {
+			for _, project := range resp.Projects {
+				fmt.Printf("    📁 Project: %s (ID: %s, Deleted: %t)\n", project.Name, project.ID, project.IsDeleted)
+			}
+		}
+	}
 	tx, err := m.storage.BeginTx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)

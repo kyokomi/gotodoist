@@ -143,6 +143,7 @@ func TestProjectLifecycle(t *testing.T) {
 			t.Logf("✓ プロジェクト更新後 '%s' が一覧に存在することを確認", updatedProjectName)
 			// 以降のテストでは更新後の名前を使用
 			projectName = updatedProjectName
+			t.Logf("プロジェクト名を '%s' に更新", projectName)
 		}
 	})
 
@@ -196,7 +197,8 @@ func TestProjectLifecycle(t *testing.T) {
 	t.Run("6. タスクを1つ更新", func(t *testing.T) {
 		updatedTaskContent := fmt.Sprintf("Updated-Task-1-%s", timestamp)
 
-		// まずタスクIDを取得
+		// まずタスクIDを取得（更新後のプロジェクト名を使用）
+		t.Logf("タスクID取得: プロジェクト名='%s', タスク内容='%s'", projectName, taskContents[0])
 		taskID, err := findTaskIDByContent(binaryPath, env, projectName, taskContents[0])
 		if err != nil {
 			t.Fatalf("更新対象タスクのID取得に失敗: %v", err)
