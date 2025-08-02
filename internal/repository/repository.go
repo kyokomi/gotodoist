@@ -155,10 +155,11 @@ func (c *Repository) UpdateTask(ctx context.Context, taskID string, req *api.Upd
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after task update: %v", err)
+		// 更新後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after task update: %v", err)
 		}
 	}
 
@@ -265,10 +266,11 @@ func (c *Repository) UpdateProject(ctx context.Context, projectID string, req *a
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project update: %v", err)
+		// 更新後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project update: %v", err)
 		}
 	}
 
@@ -312,10 +314,11 @@ func (c *Repository) ArchiveProject(ctx context.Context, projectID string) (*api
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project archive: %v", err)
+		// アーカイブ後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project archive: %v", err)
 		}
 	}
 
@@ -330,10 +333,11 @@ func (c *Repository) UnarchiveProject(ctx context.Context, projectID string) (*a
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project unarchive: %v", err)
+		// アンアーカイブ後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project unarchive: %v", err)
 		}
 	}
 
