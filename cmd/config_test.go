@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const configCmdName = "config"
@@ -37,26 +39,16 @@ func TestMaskToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := maskToken(tt.token)
-			if result != tt.expected {
-				t.Errorf("maskToken(%q) = %q, want %q", tt.token, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "maskToken結果が期待値と異なります")
 		})
 	}
 }
 
 func TestConfigCommandDefinition(t *testing.T) {
 	// configコマンドが正しく定義されているかテスト
-	if configCmd.Use != configCmdName {
-		t.Errorf("expected Use to be %q, got %s", configCmdName, configCmd.Use)
-	}
-
-	if configCmd.Short != "Manage gotodoist configuration" {
-		t.Errorf("expected Short to be 'Manage gotodoist configuration', got %s", configCmd.Short)
-	}
-
-	if configCmd.Run == nil && configCmd.RunE == nil {
-		t.Error("expected Run or RunE function to be defined")
-	}
+	assert.Equal(t, configCmdName, configCmd.Use, "configコマンドのUseが期待値と異なります")
+	assert.Equal(t, "Manage gotodoist configuration", configCmd.Short, "configコマンドのShortが期待値と異なります")
+	assert.True(t, configCmd.Run != nil || configCmd.RunE != nil, "configコマンドのRunまたはRunE関数が定義されていません")
 
 	// サブコマンドがあることを確認
 	commands := configCmd.Commands()
@@ -70,36 +62,22 @@ func TestConfigCommandDefinition(t *testing.T) {
 				break
 			}
 		}
-		if !found {
-			t.Errorf("expected subcommand %q to be registered", expectedCmd)
-		}
+		assert.True(t, found, "サブコマンド %q が登録されていません", expectedCmd)
 	}
 }
 
 func TestConfigSubcommandDefinitions(t *testing.T) {
 	// showコマンドのテスト
-	if configShowCmd.Use != "show" {
-		t.Errorf("expected configShowCmd.Use to be 'show', got %s", configShowCmd.Use)
-	}
-	if configShowCmd.Run == nil && configShowCmd.RunE == nil {
-		t.Error("expected configShowCmd.Run or RunE to be defined")
-	}
+	assert.Equal(t, "show", configShowCmd.Use, "configShowCmdのUseが期待値と異なります")
+	assert.True(t, configShowCmd.Run != nil || configShowCmd.RunE != nil, "configShowCmdのRunまたはRunE関数が定義されていません")
 
 	// pathコマンドのテスト
-	if configPathCmd.Use != "path" {
-		t.Errorf("expected configPathCmd.Use to be 'path', got %s", configPathCmd.Use)
-	}
-	if configPathCmd.Run == nil && configPathCmd.RunE == nil {
-		t.Error("expected configPathCmd.Run or RunE to be defined")
-	}
+	assert.Equal(t, "path", configPathCmd.Use, "configPathCmdのUseが期待値と異なります")
+	assert.True(t, configPathCmd.Run != nil || configPathCmd.RunE != nil, "configPathCmdのRunまたはRunE関数が定義されていません")
 
 	// initコマンドのテスト
-	if configInitCmd.Use != "init" {
-		t.Errorf("expected configInitCmd.Use to be 'init', got %s", configInitCmd.Use)
-	}
-	if configInitCmd.Run == nil && configInitCmd.RunE == nil {
-		t.Error("expected configInitCmd.Run or RunE to be defined")
-	}
+	assert.Equal(t, "init", configInitCmd.Use, "configInitCmdのUseが期待値と異なります")
+	assert.True(t, configInitCmd.Run != nil || configInitCmd.RunE != nil, "configInitCmdのRunまたはRunE関数が定義されていません")
 }
 
 func TestConfigCommandIntegration(t *testing.T) {
@@ -112,7 +90,5 @@ func TestConfigCommandIntegration(t *testing.T) {
 		}
 	}
 
-	if !found {
-		t.Error("config command should be added to root command")
-	}
+	assert.True(t, found, "configコマンドがrootコマンドに追加されていません")
 }

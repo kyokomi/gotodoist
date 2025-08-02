@@ -1,6 +1,10 @@
 package api
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestValidateCreateProjectRequest(t *testing.T) {
 	tests := []struct {
@@ -32,8 +36,10 @@ func TestValidateCreateProjectRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateCreateProjectRequest(tt.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateCreateProjectRequest() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateCreateProjectRequestでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateCreateProjectRequestでエラーが発生しました")
 			}
 		})
 	}
@@ -62,8 +68,10 @@ func TestValidateUpdateProjectRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateUpdateProjectRequest(tt.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateUpdateProjectRequest() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateUpdateProjectRequestでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateUpdateProjectRequestでエラーが発生しました")
 			}
 		})
 	}
@@ -90,8 +98,10 @@ func TestValidateProjectID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateProjectID(tt.projectID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateProjectID() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateProjectIDでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateProjectIDでエラーが発生しました")
 			}
 		})
 	}
@@ -127,8 +137,10 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateCreateTaskRequest(tt.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateCreateTaskRequest() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateCreateTaskRequestでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateCreateTaskRequestでエラーが発生しました")
 			}
 		})
 	}
@@ -157,8 +169,10 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateUpdateTaskRequest(tt.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateUpdateTaskRequest() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateUpdateTaskRequestでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateUpdateTaskRequestでエラーが発生しました")
 			}
 		})
 	}
@@ -185,8 +199,10 @@ func TestValidateTaskID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateTaskID(tt.taskID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateTaskID() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateTaskIDでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateTaskIDでエラーが発生しました")
 			}
 		})
 	}
@@ -213,8 +229,10 @@ func TestValidateAPIToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateAPIToken(tt.token)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateAPIToken() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err, "validateAPITokenでエラーが期待されます")
+			} else {
+				assert.NoError(t, err, "validateAPITokenでエラーが発生しました")
 			}
 		})
 	}

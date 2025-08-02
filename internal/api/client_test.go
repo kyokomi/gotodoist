@@ -6,6 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewClient(t *testing.T) {
@@ -29,39 +32,28 @@ func TestNewClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := NewClient(tt.token)
+
 			if tt.wantError {
-				if err == nil {
-					t.Error("expected error but got nil")
-				}
+				assert.Error(t, err, "エラーが期待されますが、nilが返されました")
+				assert.Nil(t, client, "エラー時はクライアントはnilであるべきです")
 				return
 			}
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-			if client == nil {
-				t.Error("expected client but got nil")
-				return
-			}
-			if client.token != tt.token {
-				t.Errorf("expected token %s, got %s", tt.token, client.token)
-			}
+
+			require.NoError(t, err, "予期しないエラーが発生しました")
+			require.NotNil(t, client, "クライアントがnilです")
+			assert.Equal(t, tt.token, client.token, "トークンが期待値と異なります")
 		})
 	}
 }
 
 func TestClient_SetTimeout(t *testing.T) {
 	client, err := NewClient("test-token")
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
+	require.NoError(t, err, "クライアント作成でエラーが発生しました")
 
 	timeout := 10 * time.Second
 	client.SetTimeout(timeout)
 
-	if client.httpClient.Timeout != timeout {
-		t.Errorf("expected timeout %v, got %v", timeout, client.httpClient.Timeout)
-	}
+	assert.Equal(t, timeout, client.httpClient.Timeout, "タイムアウト設定が期待値と異なります")
 }
 
 func TestClient_SetBaseURL(t *testing.T) {
