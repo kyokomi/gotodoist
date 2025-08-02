@@ -12,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestProjectLifecycle プロジェクトのライフサイクル全体をテストし、データ整合性を確認する
@@ -38,45 +41,34 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "sync", "reset", "-f")
 		cmd.Env = env
 		output, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("sync reset失敗: %v\n出力: %s", err, string(output))
-		} else {
-			t.Logf("sync reset完了: %s", strings.TrimSpace(string(output)))
-		}
+		require.NoError(t, err, "sync reset失敗")
+		t.Logf("sync reset完了: %s", strings.TrimSpace(string(output)))
 
 		// 初期同期でサーバーデータを取得
 		cmd = exec.Command(binaryPath, "sync", "init")
 		cmd.Env = env
-		if output, err := cmd.Output(); err != nil {
-			t.Fatalf("sync init失敗: %v", err)
-		} else {
-			t.Logf("sync init完了: %s", strings.TrimSpace(string(output)))
-		}
+		output, err = cmd.Output()
+		require.NoError(t, err, "sync init失敗")
+		t.Logf("sync init完了: %s", strings.TrimSpace(string(output)))
 
 		// ベースラインとなるプロジェクト一覧を取得
 		cmd = exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
 		projectOutput, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("ベースラインプロジェクト一覧の取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "ベースラインプロジェクト一覧の取得に失敗")
 		baselineProjectsA = string(projectOutput)
 
 		projectCount := countProjectsFromOutput(baselineProjectsA)
 		t.Logf("ベースライン時のプロジェクト数: %d", projectCount)
 
 		// Todoistの無料プランはプロジェクト数に制限がある（通常5個）
-		if projectCount >= 4 {
-			t.Fatalf("プロジェクト数が制限に近づいています（現在: %d個）。テスト実行前にプロジェクトを削除してください。", projectCount)
-		}
+		assert.Less(t, projectCount, 4, "プロジェクト数が制限に近づいています。テスト実行前にプロジェクトを削除してください。")
 
 		// ベースラインとなるタスク一覧を取得
 		cmd = exec.Command(binaryPath, "task", "list")
 		cmd.Env = env
 		taskOutput, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("ベースラインタスク一覧の取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "ベースラインタスク一覧の取得に失敗")
 		baselineTasksA = string(taskOutput)
 
 		t.Logf("ベースラインデータA取得完了")
@@ -94,9 +86,7 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "add", projectName)
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクト作成に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクト作成に失敗")
 		t.Logf("プロジェクト作成結果: %s", strings.TrimSpace(string(output)))
 	})
 
@@ -105,18 +95,13 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクト一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクト一覧取得に失敗")
 
 		outputStr := string(output)
 		// より正確な検証: "📁 プロジェクト名" の形式で存在するかチェック
 		expectedLine := fmt.Sprintf("📁 %s", projectName)
-		if !strings.Contains(outputStr, expectedLine) {
-			t.Errorf("作成したプロジェクト '%s' が一覧に存在しません\n出力: %s", projectName, outputStr)
-		} else {
-			t.Logf("✓ プロジェクト '%s' が一覧に存在することを確認", projectName)
-		}
+		assert.Contains(t, outputStr, expectedLine, "作成したプロジェクトが一覧に存在しません")
+		t.Logf("✓ プロジェクト '%s' が一覧に存在することを確認", projectName)
 	})
 
 	// ステップ3: 作成したプロジェクトを更新する
@@ -125,30 +110,23 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "update", projectName, "--name", updatedProjectName)
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクト更新に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクト更新に失敗")
 		t.Logf("プロジェクト更新結果: %s", strings.TrimSpace(string(output)))
 
 		// 更新後の一覧確認
 		cmd = exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクト一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクト一覧取得に失敗")
 
 		outputStr := string(output)
 		// より正確な検証: "📁 プロジェクト名" の形式で存在するかチェック
 		expectedLine := fmt.Sprintf("📁 %s", updatedProjectName)
-		if !strings.Contains(outputStr, expectedLine) {
-			t.Errorf("更新したプロジェクト '%s' が一覧に存在しません\n出力: %s", updatedProjectName, outputStr)
-		} else {
-			t.Logf("✓ プロジェクト更新後 '%s' が一覧に存在することを確認", updatedProjectName)
-			// 以降のテストでは更新後の名前を使用
-			projectName = updatedProjectName
-			t.Logf("プロジェクト名を '%s' に更新", projectName)
-		}
+		assert.Contains(t, outputStr, expectedLine, "更新したプロジェクトが一覧に存在しません")
+		t.Logf("✓ プロジェクト更新後 '%s' が一覧に存在することを確認", updatedProjectName)
+		// 以降のテストでは更新後の名前を使用
+		projectName = updatedProjectName
+		t.Logf("プロジェクト名を '%s' に更新", projectName)
 	})
 
 	// ステップ4: 作成したプロジェクトにタスクを3つ追加
@@ -176,25 +154,20 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "task", "list", "-p", projectName)
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクトのタスク一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクトのタスク一覧取得に失敗")
 
 		outputStr := string(output)
 		foundTasks := 0
 		for _, taskContent := range taskContents {
+			assert.Contains(t, outputStr, taskContent, "タスクが一覧に存在しません")
+			t.Logf("✓ タスク '%s' が一覧に存在", taskContent)
 			if strings.Contains(outputStr, taskContent) {
 				foundTasks++
-				t.Logf("✓ タスク '%s' が一覧に存在", taskContent)
-			} else {
-				t.Errorf("✗ タスク '%s' が一覧に存在しません", taskContent)
 			}
 		}
 
-		if foundTasks != len(taskContents) {
-			t.Errorf("期待したタスク数と異なります。期待: %d, 実際: %d\n出力: %s",
-				len(taskContents), foundTasks, outputStr)
-		}
+		// タスク数の確認
+		assert.Equal(t, len(taskContents), foundTasks, "期待したタスク数と異なります")
 	})
 
 	// ステップ6: タスクを1つ更新する
@@ -204,33 +177,24 @@ func TestProjectLifecycle(t *testing.T) {
 		// まずタスクIDを取得（更新後のプロジェクト名を使用）
 		t.Logf("タスクID取得: プロジェクト名='%s', タスク内容='%s'", projectName, taskContents[0])
 		taskID, err := findTaskIDByContent(binaryPath, env, projectName, taskContents[0])
-		if err != nil {
-			t.Fatalf("更新対象タスクのID取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "更新対象タスクのID取得に失敗")
 
 		// タスクの内容を更新
 		cmd := exec.Command(binaryPath, "task", "update", taskID, "--content", updatedTaskContent)
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("タスク更新に失敗: %v", err)
-		}
+		require.NoError(t, err, "タスク更新に失敗")
 		t.Logf("タスク更新結果: %s", strings.TrimSpace(string(output)))
 
 		// 更新後の確認
 		cmd = exec.Command(binaryPath, "task", "list", "-p", projectName)
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("タスク一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "タスク一覧取得に失敗")
 
 		outputStr := string(output)
-		if !strings.Contains(outputStr, updatedTaskContent) {
-			t.Errorf("更新したタスク '%s' が一覧に存在しません\n出力: %s", updatedTaskContent, outputStr)
-		} else {
-			t.Logf("✓ タスク更新後 '%s' が一覧に存在することを確認", updatedTaskContent)
-		}
+		assert.Contains(t, outputStr, updatedTaskContent, "更新したタスクが一覧に存在しません")
+		t.Logf("✓ タスク更新後 '%s' が一覧に存在することを確認", updatedTaskContent)
 	})
 
 	// ステップ7: タスクを1つ削除する
@@ -239,34 +203,25 @@ func TestProjectLifecycle(t *testing.T) {
 
 		// まずタスクIDを取得
 		taskID, err := findTaskIDByContent(binaryPath, env, projectName, taskToDelete)
-		if err != nil {
-			t.Fatalf("タスクID取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "タスクID取得に失敗")
 		t.Logf("削除対象タスクID: %s", taskID)
 
 		// タスクIDで削除を実行
 		cmd := exec.Command(binaryPath, "task", "delete", taskID, "-f")
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("タスク削除に失敗: %v", err)
-		}
+		require.NoError(t, err, "タスク削除に失敗")
 		t.Logf("タスク削除結果: %s", strings.TrimSpace(string(output)))
 
 		// 削除後の確認
 		cmd = exec.Command(binaryPath, "task", "list", "-p", projectName)
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("タスク一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "タスク一覧取得に失敗")
 
 		outputStr := string(output)
-		if strings.Contains(outputStr, taskToDelete) {
-			t.Errorf("削除したはずのタスク '%s' がまだ一覧に存在します\n出力: %s", taskToDelete, outputStr)
-		} else {
-			t.Logf("✓ タスク削除後 '%s' が一覧から削除されていることを確認", taskToDelete)
-		}
+		assert.NotContains(t, outputStr, taskToDelete, "削除したはずのタスクがまだ一覧に存在しています")
+		t.Logf("✓ タスク削除後 '%s' が一覧から削除されていることを確認", taskToDelete)
 	})
 
 	// ステップ8: プロジェクトをアーカイブする
@@ -275,27 +230,20 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "archive", projectName)
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクトアーカイブに失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクトアーカイブに失敗")
 		t.Logf("プロジェクトアーカイブ結果: %s", strings.TrimSpace(string(output)))
 
 		// アーカイブ後の一覧確認（アクティブなプロジェクト一覧には表示されないはず）
 		cmd = exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("アーカイブ後のプロジェクト一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "アーカイブ後のプロジェクト一覧取得に失敗")
 
 		outputStr := string(output)
 		// より正確な検証: "📁 プロジェクト名" の形式で存在しないかチェック
 		expectedLine := fmt.Sprintf("📁 %s", projectName)
-		if strings.Contains(outputStr, expectedLine) {
-			t.Errorf("アーカイブしたプロジェクト '%s' がアクティブ一覧にまだ表示されています\\n出力: %s", projectName, outputStr)
-		} else {
-			t.Logf("✓ アーカイブ後 '%s' がアクティブ一覧から削除されていることを確認", projectName)
-		}
+		assert.NotContains(t, outputStr, expectedLine, "アーカイブしたプロジェクトがアクティブ一覧にまだ表示されています")
+		t.Logf("✓ アーカイブ後 '%s' がアクティブ一覧から削除されていることを確認", projectName)
 	})
 
 	// ステップ9: プロジェクトをアンアーカイブする
@@ -304,35 +252,26 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "unarchive", projectName)
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクトアンアーカイブに失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクトアンアーカイブに失敗")
 		t.Logf("プロジェクトアンアーカイブ結果: %s", strings.TrimSpace(string(output)))
 
 		// アンアーカイブ後の一覧確認（再度アクティブ一覧に表示されるはず）
 		cmd = exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("アンアーカイブ後のプロジェクト一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "アンアーカイブ後のプロジェクト一覧取得に失敗")
 
 		outputStr := string(output)
 		// より正確な検証: "📁 プロジェクト名" の形式で存在するかチェック
 		expectedLine := fmt.Sprintf("📁 %s", projectName)
-		if !strings.Contains(outputStr, expectedLine) {
-			t.Errorf("アンアーカイブしたプロジェクト '%s' がアクティブ一覧に表示されません\\n出力: %s", projectName, outputStr)
-		} else {
-			t.Logf("✓ アンアーカイブ後 '%s' がアクティブ一覧に復活していることを確認", projectName)
-		}
+		assert.Contains(t, outputStr, expectedLine, "アンアーカイブしたプロジェクトがアクティブ一覧に表示されません")
+		t.Logf("✓ アンアーカイブ後 '%s' がアクティブ一覧に復活していることを確認", projectName)
 
 		// タスクもアンアーカイブ後に再表示されるか確認
 		cmd = exec.Command(binaryPath, "task", "list", "-p", projectName)
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("アンアーカイブ後のタスク一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "アンアーカイブ後のタスク一覧取得に失敗")
 
 		outputStr = string(output)
 		visibleTasks := 0
@@ -345,11 +284,8 @@ func TestProjectLifecycle(t *testing.T) {
 
 		// 削除されたタスクを除いて、残りのタスクが表示されているか確認
 		expectedVisibleTasks := len(taskContents) - 1 // ステップ7で1つ削除されている想定
-		if visibleTasks == expectedVisibleTasks {
-			t.Logf("✓ アンアーカイブ後に期待されるタスク数 (%d個) が表示されています", expectedVisibleTasks)
-		} else {
-			t.Logf("期待されるタスク数と異なります。期待: %d, 実際: %d", expectedVisibleTasks, visibleTasks)
-		}
+		assert.Equal(t, expectedVisibleTasks, visibleTasks, "アンアーカイブ後に期待されるタスク数と異なります")
+		t.Logf("✓ アンアーカイブ後に期待されるタスク数 (%d個) が表示されています", expectedVisibleTasks)
 	})
 
 	// ステップ10: プロジェクトを削除する
@@ -358,9 +294,7 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "delete", projectName, "-f")
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクト削除に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクト削除に失敗")
 		t.Logf("プロジェクト削除結果: %s", strings.TrimSpace(string(output)))
 	})
 
@@ -369,18 +303,13 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("プロジェクト一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "プロジェクト一覧取得に失敗")
 
 		outputStr := string(output)
 		// より正確な検証: "📁 プロジェクト名" の形式で存在しないかチェック
 		expectedLine := fmt.Sprintf("📁 %s", projectName)
-		if strings.Contains(outputStr, expectedLine) {
-			t.Errorf("削除したはずのプロジェクト '%s' がまだ一覧に存在します\n出力: %s", projectName, outputStr)
-		} else {
-			t.Logf("✓ プロジェクト削除後 '%s' が一覧から削除されていることを確認", projectName)
-		}
+		assert.NotContains(t, outputStr, expectedLine, "削除したはずのプロジェクトがまだ一覧に存在しています")
+		t.Logf("✓ プロジェクト削除後 '%s' が一覧から削除されていることを確認", projectName)
 	})
 
 	// ステップ12: 全タスク一覧を取得してプロジェクトと一緒にタスクが削除されていることを確認
@@ -390,24 +319,13 @@ func TestProjectLifecycle(t *testing.T) {
 		cmd := exec.Command(binaryPath, "task", "list")
 		cmd.Env = env
 		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("全タスク一覧取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "全タスク一覧取得に失敗")
 
 		outputStr := string(output)
-		remainingTasks := 0
 		for _, taskContent := range taskContents {
-			if strings.Contains(outputStr, taskContent) {
-				remainingTasks++
-				t.Errorf("✗ プロジェクト削除後もタスク '%s' が残っています", taskContent)
-			}
+			assert.NotContains(t, outputStr, taskContent, "プロジェクト削除後もタスクが残っています")
 		}
-
-		if remainingTasks == 0 {
-			t.Logf("✓ プロジェクト削除に伴いすべてのタスクが削除されていることを確認")
-		} else {
-			t.Errorf("プロジェクト削除後も %d個のタスクが残っています（カスケード削除が正しく動作していない可能性）", remainingTasks)
-		}
+		t.Logf("✓ プロジェクト削除に伴いすべてのタスクが削除されていることを確認")
 	})
 
 	// データ整合性確認: 再度sync resetとsync initでサーバーデータを取得し、ベースラインAと一致するか確認
@@ -415,37 +333,29 @@ func TestProjectLifecycle(t *testing.T) {
 		// ローカルストレージを再リセット
 		cmd := exec.Command(binaryPath, "sync", "reset", "-f")
 		cmd.Env = env
-		if output, err := cmd.Output(); err != nil {
-			t.Fatalf("最終sync reset失敗: %v", err)
-		} else {
-			t.Logf("最終sync reset完了: %s", strings.TrimSpace(string(output)))
-		}
+		output, err := cmd.Output()
+		require.NoError(t, err, "最終sync reset失敗")
+		t.Logf("最終sync reset完了: %s", strings.TrimSpace(string(output)))
 
 		// 再度初期同期でサーバーデータを取得
 		cmd = exec.Command(binaryPath, "sync", "init")
 		cmd.Env = env
-		if output, err := cmd.Output(); err != nil {
-			t.Fatalf("最終sync init失敗: %v", err)
-		} else {
-			t.Logf("最終sync init完了: %s", strings.TrimSpace(string(output)))
-		}
+		output, err = cmd.Output()
+		require.NoError(t, err, "最終sync init失敗")
+		t.Logf("最終sync init完了: %s", strings.TrimSpace(string(output)))
 
 		// 最終状態のプロジェクト一覧を取得
 		cmd = exec.Command(binaryPath, "project", "list")
 		cmd.Env = env
-		output, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("最終プロジェクト一覧の取得に失敗: %v", err)
-		}
+		output, err = cmd.Output()
+		require.NoError(t, err, "最終プロジェクト一覧の取得に失敗")
 		finalProjectsA := string(output)
 
 		// 最終状態のタスク一覧を取得
 		cmd = exec.Command(binaryPath, "task", "list")
 		cmd.Env = env
 		output, err = cmd.Output()
-		if err != nil {
-			t.Fatalf("最終タスク一覧の取得に失敗: %v", err)
-		}
+		require.NoError(t, err, "最終タスク一覧の取得に失敗")
 		finalTasksA := string(output)
 
 		// データ整合性の確認
@@ -462,26 +372,24 @@ func TestProjectLifecycle(t *testing.T) {
 		t.Logf("- プロジェクトデータ一致: %t", projectsMatch)
 		t.Logf("- タスクデータ一致: %t", tasksMatch)
 
-		if !projectsMatch {
-			t.Errorf("❌ プロジェクトデータが一致しません")
+		assert.True(t, projectsMatch, "プロジェクトデータが一致しません")
+		if projectsMatch {
+			t.Logf("✅ プロジェクトデータが一致しています")
+		} else {
 			t.Logf("ベースライン:\n%s", baselineProjectsA)
 			t.Logf("最終状態:\n%s", finalProjectsA)
-		} else {
-			t.Logf("✅ プロジェクトデータが一致しています")
 		}
 
-		if !tasksMatch {
-			t.Errorf("❌ タスクデータが一致しません")
+		assert.True(t, tasksMatch, "タスクデータが一致しません")
+		if tasksMatch {
+			t.Logf("✅ タスクデータが一致しています")
+		} else {
 			t.Logf("ベースライン:\n%s", baselineTasksA)
 			t.Logf("最終状態:\n%s", finalTasksA)
-		} else {
-			t.Logf("✅ タスクデータが一致しています")
 		}
 
 		if projectsMatch && tasksMatch {
 			t.Logf("🎉 データ整合性確認完了: ローカルストレージとTodoistサーバーが完全に同期されています")
-		} else {
-			t.Errorf("💥 データ整合性エラー: ローカルストレージとTodoistサーバー間に不整合があります")
 		}
 	})
 }
@@ -498,9 +406,8 @@ func buildBinary(t *testing.T) string {
 	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
 	cmd.Dir = ".." // e2eディレクトリから一つ上のディレクトリ
 
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("バイナリのビルドに失敗: %v", err)
-	}
+	err := cmd.Run()
+	require.NoError(t, err, "バイナリのビルドに失敗")
 
 	return binaryPath
 }
