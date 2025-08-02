@@ -27,6 +27,17 @@ var (
 	appConfig *config.Config
 )
 
+func init() {
+	// グローバルフラグの設定
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
+	rootCmd.PersistentFlags().StringVar(&lang, "lang", "", "language preference (en/ja)")
+	rootCmd.PersistentFlags().BoolVar(&showBenchmark, "benchmark", false, "show detailed performance timing")
+
+	// 設定の初期化
+	cobra.OnInitialize(initConfig)
+}
+
 // rootCmdはアプリケーションのベースコマンド
 var rootCmd = &cobra.Command{
 	Use:   "gotodoist",
@@ -57,17 +68,6 @@ func Execute() {
 	}
 }
 
-func init() {
-	// グローバルフラグの設定
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
-	rootCmd.PersistentFlags().StringVar(&lang, "lang", "", "language preference (en/ja)")
-	rootCmd.PersistentFlags().BoolVar(&showBenchmark, "benchmark", false, "show detailed performance timing")
-
-	// 設定の初期化（後で実装）
-	cobra.OnInitialize(initConfig)
-}
-
 // initConfig は設定を読み込む
 func initConfig() {
 	var err error
@@ -86,21 +86,10 @@ func initConfig() {
 	// デバッグモードの場合、設定情報を表示
 	if debug {
 		fmt.Fprintf(os.Stderr, "Configuration loaded:\n")
-		fmt.Fprintf(os.Stderr, "  API Token: %s\n", maskConfigToken(appConfig.APIToken))
+		fmt.Fprintf(os.Stderr, "  API Token: %s\n", maskToken(appConfig.APIToken))
 		fmt.Fprintf(os.Stderr, "  Base URL:  %s\n", appConfig.BaseURL)
 		fmt.Fprintf(os.Stderr, "  Language:  %s\n", appConfig.Language)
 	}
-}
-
-// maskConfigToken はトークンの一部を隠す（デバッグ用）
-func maskConfigToken(token string) string {
-	if token == "" {
-		return notSetToken
-	}
-	if len(token) < minTokenLength {
-		return maskedToken
-	}
-	return token[:4] + "..." + token[len(token)-4:]
 }
 
 // GetAppConfig はアプリケーション設定を返す
