@@ -319,6 +319,38 @@ func (s *SQLiteDB) DeleteTasksByProject(projectID string) error {
 	return nil
 }
 
+// UpdateTaskCompleted はタスクの完了状態を更新する
+func (s *SQLiteDB) UpdateTaskCompleted(taskID string, completed bool) error {
+	var completedAt sql.NullInt64
+	if completed {
+		completedAt = sql.NullInt64{Int64: time.Now().Unix(), Valid: true}
+	}
+
+	query := `
+		UPDATE tasks SET
+			is_completed = ?,
+			completed_at = ?,
+			updated_at = strftime('%s', 'now')
+		WHERE id = ?
+	`
+
+	result, err := s.db.Exec(query, completed, completedAt, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to update task completion status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("task with ID %s not found", taskID)
+	}
+
+	return nil
+}
+
 // nullString はstring値をsql.NullStringに変換する
 func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}

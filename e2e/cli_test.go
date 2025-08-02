@@ -197,6 +197,65 @@ func TestProjectLifecycle(t *testing.T) {
 		t.Logf("✓ タスク更新後 '%s' が一覧に存在することを確認", updatedTaskContent)
 	})
 
+	// ステップ6.5: タスクの完了と未完了のテスト
+	t.Run("6.5. タスクの完了と未完了テスト", func(t *testing.T) {
+		// 残っているタスクの中から1つ選択（3番目のタスク）
+		testTaskContent := taskContents[2] // "Task-3-timestamp"
+
+		// タスクIDを取得
+		taskID, err := findTaskIDByContent(binaryPath, env, projectName, testTaskContent)
+		require.NoError(t, err, "テスト対象タスクのID取得に失敗")
+		t.Logf("テスト対象タスクID: %s, 内容: %s", taskID, testTaskContent)
+
+		// サブテスト: タスクを完了にする
+		t.Run("complete", func(t *testing.T) {
+			cmd := exec.Command(binaryPath, "task", "complete", taskID)
+			cmd.Env = env
+			output, err := cmd.Output()
+			require.NoError(t, err, "タスク完了に失敗")
+			t.Logf("タスク完了結果: %s", strings.TrimSpace(string(output)))
+
+			// 完了後の確認: 通常のタスク一覧では表示されないはず
+			cmd = exec.Command(binaryPath, "task", "list", "-p", projectName)
+			cmd.Env = env
+			output, err = cmd.Output()
+			require.NoError(t, err, "タスク一覧取得に失敗")
+
+			outputStr := string(output)
+			assert.NotContains(t, outputStr, testTaskContent, "完了したタスクが通常の一覧に表示されています")
+			t.Logf("✓ 完了したタスク '%s' が通常の一覧から除外されていることを確認", testTaskContent)
+
+			// --allフラグで確認: 完了済みタスクも表示されるはず
+			cmd = exec.Command(binaryPath, "task", "list", "-p", projectName, "--all")
+			cmd.Env = env
+			output, err = cmd.Output()
+			require.NoError(t, err, "全タスク一覧取得に失敗")
+
+			outputStr = string(output)
+			assert.Contains(t, outputStr, testTaskContent, "完了したタスクが--allフラグ付き一覧に表示されません")
+			t.Logf("✓ 完了したタスク '%s' が--allフラグ付き一覧に表示されていることを確認", testTaskContent)
+		})
+
+		// サブテスト: タスクを未完了に戻す
+		t.Run("uncomplete", func(t *testing.T) {
+			cmd := exec.Command(binaryPath, "task", "uncomplete", taskID)
+			cmd.Env = env
+			output, err := cmd.Output()
+			require.NoError(t, err, "タスク未完了に失敗")
+			t.Logf("タスク未完了結果: %s", strings.TrimSpace(string(output)))
+
+			// 未完了後の確認: 再び通常のタスク一覧に表示されるはず
+			cmd = exec.Command(binaryPath, "task", "list", "-p", projectName)
+			cmd.Env = env
+			output, err = cmd.Output()
+			require.NoError(t, err, "タスク一覧取得に失敗")
+
+			outputStr := string(output)
+			assert.Contains(t, outputStr, testTaskContent, "未完了に戻したタスクが一覧に表示されません")
+			t.Logf("✓ 未完了に戻したタスク '%s' が通常の一覧に再表示されていることを確認", testTaskContent)
+		})
+	})
+
 	// ステップ7: タスクを1つ削除する
 	t.Run("7. タスクを1つ削除", func(t *testing.T) {
 		taskToDelete := taskContents[1] // 2番目のタスクを削除
