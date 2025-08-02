@@ -50,7 +50,7 @@ gh pr create --title "タイトル" --body "## Summary
 1. **明確な並び順**: init → コマンド定義 → パラメータ構造体 → ハンドラー → ビジネスロジック → エクゼキューター → レシーバーメソッド → ヘルパー
 2. **コマンドごとのグループ化**: 各コマンドに関連する要素（パラメータ型、getParams、runハンドラー）をまとめて配置
 3. **統一された4ステップパターン**: すべてのrunメソッドは「セットアップ → パラメータ取得 → 実行 → 結果表示」の構成
-4. **Context管理**: 構造体に保持せず第一引数で引き回し、各関数の冒頭で`ctx := context.Background()`を宣言
+4. **Context管理**: 構造体に保持せず第一引数で引き回し。cmdパッケージでは冒頭で`ctx := context.Background()`を宣言、internalパッケージでは受け取ったcontextをそのまま使用
 
 ## 🛠️ 主要コマンド
 
@@ -59,6 +59,20 @@ make help     # 利用可能なコマンド一覧
 make build    # ビルド
 make dev      # 開発モード（ファイル監視）
 make ci       # CI用チェック（fmt, lint, test）
+```
+
+## 📁 ディレクトリ構成
+```
+gotodoist/
+├── cmd/           # CLIコマンド定義
+├── internal/      # 内部パッケージ
+│   ├── api/       # Todoist APIクライアント
+│   ├── config/    # 設定管理
+│   ├── repository/# データアクセス層（ローカル優先）
+│   ├── storage/   # SQLiteストレージ
+│   └── sync/      # 同期処理
+├── locales/       # 翻訳ファイル
+└── .github/       # GitHub Actions設定
 ```
 
 ## ⚡ 便利な情報
