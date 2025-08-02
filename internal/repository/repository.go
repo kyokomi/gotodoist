@@ -379,7 +379,7 @@ func (c *Repository) FindProjectIDByName(ctx context.Context, nameOrID string) (
 }
 
 // ResetLocalStorage はローカルストレージを完全にリセットする
-func (c *Repository) ResetLocalStorage(ctx context.Context) error {
+func (c *Repository) ResetLocalStorage(_ context.Context) error {
 	if !c.config.Enabled {
 		return fmt.Errorf("local storage is disabled")
 	}

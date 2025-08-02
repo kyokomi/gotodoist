@@ -149,7 +149,10 @@ func (s *SQLiteDB) ResetAllData() error {
 	}
 	defer func() {
 		if err != nil {
-			tx.Rollback()
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				// ロールバックのエラーはログに記録するが、元のエラーを優先
+				fmt.Printf("Failed to rollback transaction: %v\n", rollbackErr)
+			}
 		}
 	}()
 
