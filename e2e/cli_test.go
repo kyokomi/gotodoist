@@ -110,7 +110,9 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		outputStr := string(output)
-		if !strings.Contains(outputStr, projectName) {
+		// より正確な検証: "📁 プロジェクト名" の形式で存在するかチェック
+		expectedLine := fmt.Sprintf("📁 %s", projectName)
+		if !strings.Contains(outputStr, expectedLine) {
 			t.Errorf("作成したプロジェクト '%s' が一覧に存在しません\n出力: %s", projectName, outputStr)
 		} else {
 			t.Logf("✓ プロジェクト '%s' が一覧に存在することを確認", projectName)
@@ -137,7 +139,9 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		outputStr := string(output)
-		if !strings.Contains(outputStr, updatedProjectName) {
+		// より正確な検証: "📁 プロジェクト名" の形式で存在するかチェック
+		expectedLine := fmt.Sprintf("📁 %s", updatedProjectName)
+		if !strings.Contains(outputStr, expectedLine) {
 			t.Errorf("更新したプロジェクト '%s' が一覧に存在しません\n出力: %s", updatedProjectName, outputStr)
 		} else {
 			t.Logf("✓ プロジェクト更新後 '%s' が一覧に存在することを確認", updatedProjectName)
@@ -285,7 +289,9 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		outputStr := string(output)
-		if strings.Contains(outputStr, projectName) {
+		// より正確な検証: "📁 プロジェクト名" の形式で存在しないかチェック
+		expectedLine := fmt.Sprintf("📁 %s", projectName)
+		if strings.Contains(outputStr, expectedLine) {
 			t.Errorf("アーカイブしたプロジェクト '%s' がアクティブ一覧にまだ表示されています\\n出力: %s", projectName, outputStr)
 		} else {
 			t.Logf("✓ アーカイブ後 '%s' がアクティブ一覧から削除されていることを確認", projectName)
@@ -312,7 +318,9 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		outputStr := string(output)
-		if !strings.Contains(outputStr, projectName) {
+		// より正確な検証: "📁 プロジェクト名" の形式で存在するかチェック
+		expectedLine := fmt.Sprintf("📁 %s", projectName)
+		if !strings.Contains(outputStr, expectedLine) {
 			t.Errorf("アンアーカイブしたプロジェクト '%s' がアクティブ一覧に表示されません\\n出力: %s", projectName, outputStr)
 		} else {
 			t.Logf("✓ アンアーカイブ後 '%s' がアクティブ一覧に復活していることを確認", projectName)
@@ -366,7 +374,9 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		outputStr := string(output)
-		if strings.Contains(outputStr, projectName) {
+		// より正確な検証: "📁 プロジェクト名" の形式で存在しないかチェック
+		expectedLine := fmt.Sprintf("📁 %s", projectName)
+		if strings.Contains(outputStr, expectedLine) {
 			t.Errorf("削除したはずのプロジェクト '%s' がまだ一覧に存在します\n出力: %s", projectName, outputStr)
 		} else {
 			t.Logf("✓ プロジェクト削除後 '%s' が一覧から削除されていることを確認", projectName)
