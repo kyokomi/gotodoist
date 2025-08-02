@@ -22,6 +22,7 @@ func init() {
 	taskCmd.AddCommand(taskUpdateCmd)
 	taskCmd.AddCommand(taskDeleteCmd)
 	taskCmd.AddCommand(taskCompleteCmd)
+	taskCmd.AddCommand(taskUncompleteCmd)
 
 	// タスクコマンドをルートコマンドに追加
 	rootCmd.AddCommand(taskCmd)
@@ -98,6 +99,15 @@ var taskCompleteCmd = &cobra.Command{
 	Long:  `Mark a task as completed in your Todoist.`,
 	Args:  cobra.ExactArgs(1),
 	RunE:  runTaskComplete,
+}
+
+// taskUncompleteCmd はタスク未完了コマンド
+var taskUncompleteCmd = &cobra.Command{
+	Use:   "uncomplete [task ID]",
+	Short: "Mark a task as uncompleted",
+	Long:  `Mark a completed task as uncompleted in your Todoist.`,
+	Args:  cobra.ExactArgs(1),
+	RunE:  runTaskUncomplete,
 }
 
 // taskListParams はタスクリスト実行のパラメータ
@@ -244,6 +254,32 @@ func runTaskComplete(_ *cobra.Command, args []string) error {
 
 	// 4. 結果表示
 	executor.displaySuccessMessage("Task completed successfully!", resp.SyncToken)
+
+	return nil
+}
+
+// runTaskUncomplete はタスク未完了の実際の処理
+func runTaskUncomplete(_ *cobra.Command, args []string) error {
+	ctx := createBaseContext()
+
+	// 1. セットアップ
+	executor, err := setupTaskExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. パラメータ取得
+	params := getTaskCompleteParams(args) // 同じパラメータ構造を使用
+
+	// 3. タスク未完了実行
+	resp, err := executor.executeTaskUncomplete(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to uncomplete task: %w", err)
+	}
+
+	// 4. 結果表示
+	executor.displaySuccessMessage("Task marked as uncompleted successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -694,6 +730,12 @@ func (e *taskExecutor) executeTaskAdd(ctx context.Context, params *taskAddParams
 func (e *taskExecutor) executeTaskComplete(ctx context.Context, params *taskCompleteParams) (*api.SyncResponse, error) {
 	repo := e.repository
 	return repo.CloseTask(ctx, params.taskID)
+}
+
+// executeTaskUncomplete はタスク未完了を実行する
+func (e *taskExecutor) executeTaskUncomplete(ctx context.Context, params *taskCompleteParams) (*api.SyncResponse, error) {
+	repo := e.repository
+	return repo.ReopenTask(ctx, params.taskID)
 }
 
 // findTaskByID はタスクIDからタスクを検索する

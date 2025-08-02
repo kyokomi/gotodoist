@@ -197,10 +197,40 @@ func (c *Repository) CloseTask(ctx context.Context, taskID string) (*api.SyncRes
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合
 	if c.config.Enabled {
+		// sync_token を更新
 		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
 			log.Printf("Failed to update sync token after task completion: %v", err)
+		}
+
+		// ローカルストレージでタスクを完了状態に更新
+		if err := c.storage.UpdateTaskCompleted(taskID, true); err != nil {
+			log.Printf("Failed to update task completion status in local storage: %v", err)
+		}
+	}
+
+	return resp, nil
+}
+
+// ReopenTask はタスクを未完了に戻す（API実行 + ローカル反映）
+func (c *Repository) ReopenTask(ctx context.Context, taskID string) (*api.SyncResponse, error) {
+	// API実行
+	resp, err := c.apiClient.ReopenTask(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ローカルストレージが有効な場合
+	if c.config.Enabled {
+		// sync_token を更新
+		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
+			log.Printf("Failed to update sync token after task reopening: %v", err)
+		}
+
+		// ローカルストレージでタスクを未完了状態に更新
+		if err := c.storage.UpdateTaskCompleted(taskID, false); err != nil {
+			log.Printf("Failed to update task completion status in local storage: %v", err)
 		}
 	}
 
