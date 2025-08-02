@@ -17,22 +17,27 @@ const (
 	minTokenLength = 8
 )
 
+// GlobalFlags はコマンドラインフラグをまとめた構造体
+type GlobalFlags struct {
+	Verbose       bool
+	Debug         bool
+	Lang          string
+	ShowBenchmark bool
+}
+
 var (
-	// フラグ用の変数
-	verbose       bool
-	debug         bool
-	lang          string
-	showBenchmark bool
+	// グローバルフラグ
+	globalFlags GlobalFlags
 	// アプリケーション設定
 	appConfig *config.Config
 )
 
 func init() {
 	// グローバルフラグの設定
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose output")
-	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug mode")
-	rootCmd.PersistentFlags().StringVar(&lang, "lang", "", "language preference (en/ja)")
-	rootCmd.PersistentFlags().BoolVar(&showBenchmark, "benchmark", false, "show detailed performance timing")
+	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Verbose, "verbose", "v", false, "enable verbose output")
+	rootCmd.PersistentFlags().BoolVar(&globalFlags.Debug, "debug", false, "enable debug mode")
+	rootCmd.PersistentFlags().StringVar(&globalFlags.Lang, "lang", "", "language preference (en/ja)")
+	rootCmd.PersistentFlags().BoolVar(&globalFlags.ShowBenchmark, "benchmark", false, "show detailed performance timing")
 
 	// 設定の初期化
 	cobra.OnInitialize(initConfig)
@@ -79,12 +84,12 @@ func initConfig() {
 	}
 
 	// コマンドラインフラグで設定を上書き
-	if lang != "" {
-		appConfig.Language = lang
+	if globalFlags.Lang != "" {
+		appConfig.Language = globalFlags.Lang
 	}
 
 	// デバッグモードの場合、設定情報を表示
-	if debug {
+	if globalFlags.Debug {
 		fmt.Fprintf(os.Stderr, "Configuration loaded:\n")
 		fmt.Fprintf(os.Stderr, "  API Token: %s\n", maskToken(appConfig.APIToken))
 		fmt.Fprintf(os.Stderr, "  Base URL:  %s\n", appConfig.BaseURL)

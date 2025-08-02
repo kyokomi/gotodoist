@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kyokomi/gotodoist/internal/api"
+	"github.com/kyokomi/gotodoist/internal/cli"
 	"github.com/kyokomi/gotodoist/internal/config"
 	"github.com/kyokomi/gotodoist/internal/factory"
 	"github.com/kyokomi/gotodoist/internal/repository"
@@ -137,7 +138,7 @@ func getProjectListParams(cmd *cobra.Command) *projectListParams {
 
 // runProjectList はプロジェクト一覧表示の実際の処理
 func runProjectList(cmd *cobra.Command, _ []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupProjectExecution(ctx)
@@ -159,7 +160,7 @@ func runProjectList(cmd *cobra.Command, _ []string) error {
 	filteredProjects := applyProjectFilters(data.projects, params)
 
 	// 5. 出力
-	displayProjectResults(filteredProjects, params)
+	executor.displayProjectResults(filteredProjects, params)
 
 	return nil
 }
@@ -188,7 +189,7 @@ func getProjectAddParams(cmd *cobra.Command, args []string) *projectAddParams {
 
 // runProjectAdd はプロジェクト追加の実際の処理
 func runProjectAdd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupProjectExecution(ctx)
@@ -207,7 +208,7 @@ func runProjectAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// 4. 結果表示
-	displayProjectAddResult(params, resp)
+	executor.displayProjectAddResult(params, resp)
 
 	return nil
 }
@@ -238,7 +239,7 @@ func getProjectUpdateParams(cmd *cobra.Command, args []string) *projectUpdatePar
 
 // runProjectUpdate はプロジェクト更新の実際の処理
 func runProjectUpdate(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupProjectExecution(ctx)
@@ -262,7 +263,7 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. 結果表示
-	displayProjectUpdateResult(params, resp)
+	executor.displayProjectUpdateResult(params, resp)
 
 	return nil
 }
@@ -284,7 +285,7 @@ func getProjectDeleteParams(cmd *cobra.Command, args []string) *projectDeletePar
 
 // runProjectDelete はプロジェクト削除の実際の処理
 func runProjectDelete(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupProjectExecution(ctx)
@@ -312,7 +313,7 @@ func runProjectDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. 結果表示
-	displayProjectDeleteResult(project, resp)
+	executor.displayProjectDeleteResult(project, resp)
 
 	return nil
 }
@@ -331,7 +332,7 @@ func getProjectArchiveParams(args []string) *projectArchiveParams {
 
 // runProjectArchive はプロジェクトアーカイブの実際の処理
 func runProjectArchive(_ *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupProjectExecution(ctx)
@@ -350,14 +351,14 @@ func runProjectArchive(_ *cobra.Command, args []string) error {
 	}
 
 	// 4. 結果表示
-	displaySuccessMessage("📦 Project archived successfully!", resp.SyncToken)
+	executor.displaySuccessMessageForProject("📦 Project archived successfully!", resp.SyncToken)
 
 	return nil
 }
 
 // runProjectUnarchive はプロジェクトアーカイブ解除の実際の処理
 func runProjectUnarchive(_ *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupProjectExecution(ctx)
@@ -376,7 +377,7 @@ func runProjectUnarchive(_ *cobra.Command, args []string) error {
 	}
 
 	// 4. 結果表示
-	displaySuccessMessage("📁 Project unarchived successfully!", resp.SyncToken)
+	executor.displaySuccessMessageForProject("📁 Project unarchived successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -395,7 +396,7 @@ func applyProjectFilters(projects []api.Project, params *projectListParams) []ap
 
 // filterActiveProjects はアクティブなプロジェクトのみを返す
 func filterActiveProjects(projects []api.Project) []api.Project {
-	var filtered []api.Project
+	filtered := make([]api.Project, 0, len(projects))
 	for _, project := range projects {
 		if !project.IsArchived {
 			filtered = append(filtered, project)
@@ -406,7 +407,7 @@ func filterActiveProjects(projects []api.Project) []api.Project {
 
 // filterArchivedProjects はアーカイブ済みプロジェクトのみを返す
 func filterArchivedProjects(projects []api.Project) []api.Project {
-	var filtered []api.Project
+	filtered := make([]api.Project, 0, len(projects))
 	for _, project := range projects {
 		if project.IsArchived {
 			filtered = append(filtered, project)
@@ -416,22 +417,23 @@ func filterArchivedProjects(projects []api.Project) []api.Project {
 }
 
 // displayProjectResults はプロジェクト結果を表示する
-func displayProjectResults(projects []api.Project, params *projectListParams) {
+func (e *projectExecutor) displayProjectResults(projects []api.Project, params *projectListParams) {
 	// タイトルを取得
 	title, emptyMessage := getProjectListTitle(params.showArchived, params.showFavorites)
 
 	if len(projects) == 0 {
-		fmt.Println(emptyMessage)
+		e.output.Infof(emptyMessage)
 		return
 	}
 
 	// プロジェクトを表示
-	fmt.Printf("%s (%d):\n\n", title, len(projects))
+	e.output.Projectf("%s (%d):", title, len(projects))
+	e.output.Plainf("")
 
 	if params.showTree {
-		displayProjectsTree(projects)
+		e.displayProjectsTree(projects)
 	} else {
-		displayProjectsList(projects)
+		e.displayProjectsList(projects)
 	}
 }
 
@@ -448,7 +450,7 @@ func getProjectListTitle(showArchived, showFavorites bool) (title, emptyMessage 
 }
 
 // displayProjectsList はプロジェクトをリスト形式で表示する
-func displayProjectsList(projects []api.Project) {
+func (e *projectExecutor) displayProjectsList(projects []api.Project) {
 	for i, project := range projects {
 		icon := iconFolder
 		if project.InboxProject {
@@ -457,35 +459,34 @@ func displayProjectsList(projects []api.Project) {
 			icon = iconShared
 		}
 
-		fmt.Printf("%d. %s %s", i+1, icon, project.Name)
-
+		favoriteIcon := ""
 		if project.IsFavorite {
-			fmt.Print(" ⭐")
+			favoriteIcon = " ⭐"
 		}
+		archivedIcon := ""
 		if project.IsArchived {
-			fmt.Print(" 📦")
+			archivedIcon = " 📦"
 		}
+		e.output.Plainf("%d. %s %s%s%s", i+1, icon, project.Name, favoriteIcon, archivedIcon)
 
-		fmt.Println()
-
-		if verbose {
-			fmt.Printf("   ID: %s\n", project.ID)
-			fmt.Printf("   Color: %s\n", project.Color)
+		if IsVerbose() {
+			e.output.Plainf("   ID: %s", project.ID)
+			e.output.Plainf("   Color: %s", project.Color)
 			if project.ParentID != "" {
-				fmt.Printf("   Parent ID: %s\n", project.ParentID)
+				e.output.Plainf("   Parent ID: %s", project.ParentID)
 			}
 			if project.Shared {
-				fmt.Printf("   Shared: Yes\n")
+				e.output.Plainf("   Shared: Yes")
 			}
-			fmt.Printf("   Child Order: %d\n", project.ChildOrder)
+			e.output.Plainf("   Child Order: %d", project.ChildOrder)
 		}
 
-		fmt.Println()
+		e.output.Plainf("")
 	}
 }
 
 // displayProjectsTree はプロジェクトをツリー形式で表示する
-func displayProjectsTree(projects []api.Project) {
+func (e *projectExecutor) displayProjectsTree(projects []api.Project) {
 	// 親プロジェクトマップを作成
 	parentMap := make(map[string][]api.Project)
 	rootProjects := []api.Project{}
@@ -500,12 +501,12 @@ func displayProjectsTree(projects []api.Project) {
 
 	// ルートプロジェクトから表示
 	for i := range rootProjects {
-		displayProjectTreeNode(&rootProjects[i], parentMap, 0)
+		e.displayProjectTreeNode(&rootProjects[i], parentMap, 0)
 	}
 }
 
 // displayProjectTreeNode は単一のプロジェクトノードをツリー形式で表示する
-func displayProjectTreeNode(project *api.Project, parentMap map[string][]api.Project, depth int) {
+func (e *projectExecutor) displayProjectTreeNode(project *api.Project, parentMap map[string][]api.Project, depth int) {
 	indent := strings.Repeat("  ", depth)
 	icon := iconFolder
 	if project.InboxProject {
@@ -514,71 +515,70 @@ func displayProjectTreeNode(project *api.Project, parentMap map[string][]api.Pro
 		icon = iconShared
 	}
 
-	fmt.Printf("%s├─ %s %s", indent, icon, project.Name)
-
+	favoriteIcon := ""
 	if project.IsFavorite {
-		fmt.Print(" ⭐")
+		favoriteIcon = " ⭐"
 	}
+	archivedIcon := ""
 	if project.IsArchived {
-		fmt.Print(" 📦")
+		archivedIcon = " 📦"
 	}
+	e.output.Plainf("%s├─ %s %s%s%s", indent, icon, project.Name, favoriteIcon, archivedIcon)
 
-	fmt.Println()
-
-	if verbose {
-		fmt.Printf("%s   ID: %s, Color: %s\n", indent, project.ID, project.Color)
+	if IsVerbose() {
+		e.output.Plainf("%s   ID: %s, Color: %s", indent, project.ID, project.Color)
 	}
 
 	// 子プロジェクトを表示
 	if children, exists := parentMap[project.ID]; exists {
 		for i := range children {
-			displayProjectTreeNode(&children[i], parentMap, depth+1)
+			e.displayProjectTreeNode(&children[i], parentMap, depth+1)
 		}
 	}
 }
 
 // displayProjectAddResult はプロジェクト追加結果を表示する
-func displayProjectAddResult(params *projectAddParams, resp *api.SyncResponse) {
-	fmt.Printf("📁 Project created successfully!\n")
-	fmt.Printf("   Name: %s\n", params.name)
+func (e *projectExecutor) displayProjectAddResult(params *projectAddParams, resp *api.SyncResponse) {
+	e.output.Successf("📁 Project created successfully!")
+	e.output.Plainf("   Name: %s", params.name)
 	if params.color != "" {
-		fmt.Printf("   Color: %s\n", params.color)
+		e.output.Plainf("   Color: %s", params.color)
 	}
 	if params.isFavorite {
-		fmt.Printf("   Favorite: Yes ⭐\n")
+		e.output.Plainf("   Favorite: Yes ⭐")
 	}
-	if verbose && resp.SyncToken != "" {
-		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
+	if IsVerbose() && resp.SyncToken != "" {
+		e.output.Plainf("   Sync token: %s", resp.SyncToken)
 	}
 }
 
 // displayProjectUpdateResult はプロジェクト更新結果を表示する
-func displayProjectUpdateResult(params *projectUpdateParams, resp *api.SyncResponse) {
-	fmt.Printf("✏️  Project updated successfully!\n")
+func (e *projectExecutor) displayProjectUpdateResult(params *projectUpdateParams, resp *api.SyncResponse) {
+	e.output.Successf("✏️  Project updated successfully!")
 	if params.newName != "" {
-		fmt.Printf("   New name: %s\n", params.newName)
+		e.output.Plainf("   New name: %s", params.newName)
 	}
 	if params.color != "" {
-		fmt.Printf("   Color: %s\n", params.color)
+		e.output.Plainf("   Color: %s", params.color)
 	}
 	if params.favoriteChanged {
 		if params.isFavorite {
-			fmt.Printf("   Favorite: Yes ⭐\n")
+			e.output.Plainf("   Favorite: Yes ⭐")
 		} else {
-			fmt.Printf("   Favorite: No\n")
+			e.output.Plainf("   Favorite: No")
 		}
 	}
-	if verbose && resp.SyncToken != "" {
-		fmt.Printf("   Sync token: %s\n", resp.SyncToken)
+	if IsVerbose() && resp.SyncToken != "" {
+		e.output.Plainf("   Sync token: %s", resp.SyncToken)
 	}
 }
 
 // displayProjectDeleteResult はプロジェクト削除結果を表示する
-func displayProjectDeleteResult(project *api.Project, resp *api.SyncResponse) {
-	fmt.Printf("🗑️  Project deleted successfully!\n")
-	fmt.Printf("    Deleted: %s\n", project.Name)
-	if verbose && resp.SyncToken != "" {
-		fmt.Printf("    Sync token: %s\n", resp.SyncToken)
+func (e *projectExecutor) displayProjectDeleteResult(project *api.Project, resp *api.SyncResponse) {
+	e.output.Successf("🗑️  Project deleted successfully!")
+	e.output.Infof("    Deleted: %s", project.Name)
+	if IsVerbose() && resp.SyncToken != "" {
+		e.output.Plainf("    Sync token: %s", resp.SyncToken)
 	}
 }
 
@@ -586,6 +586,7 @@ func displayProjectDeleteResult(project *api.Project, resp *api.SyncResponse) {
 type projectExecutor struct {
 	cfg        *config.Config
 	repository *repository.Repository
+	output     *cli.Output
 }
 
 // setupProjectExecution はプロジェクト実行環境をセットアップする
@@ -595,7 +596,9 @@ func setupProjectExecution(ctx context.Context) (*projectExecutor, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	repo, err := factory.NewRepository(cfg, verbose)
+	output := cli.New(IsVerbose())
+
+	repo, err := factory.NewRepository(cfg, IsVerbose())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Repository: %w", err)
 	}
@@ -603,7 +606,7 @@ func setupProjectExecution(ctx context.Context) (*projectExecutor, error) {
 	// Repositoryの初期化
 	if err := repo.Initialize(ctx); err != nil {
 		if closeErr := repo.Close(); closeErr != nil {
-			fmt.Printf("Warning: failed to close repository after initialization error: %v\n", closeErr)
+			output.Warningf("failed to close repository after initialization error: %v", closeErr)
 		}
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
@@ -611,13 +614,14 @@ func setupProjectExecution(ctx context.Context) (*projectExecutor, error) {
 	return &projectExecutor{
 		cfg:        cfg,
 		repository: repo,
+		output:     output,
 	}, nil
 }
 
 // cleanup はRepositoryのリソースクリーンアップを行う
 func (e *projectExecutor) cleanup() {
 	if err := e.repository.Close(); err != nil {
-		fmt.Printf("Warning: failed to close repository: %v\n", err)
+		e.output.Warningf("failed to close repository: %v", err)
 	}
 }
 
@@ -651,37 +655,9 @@ func (e *projectExecutor) fetchProjectListData(ctx context.Context, params *proj
 	}, nil
 }
 
-// findProjectIDByName はプロジェクト名からIDを検索する
+// findProjectIDByName はプロジェクト名からIDを検索する（Repository層に移植済み）
 func (e *projectExecutor) findProjectIDByName(ctx context.Context, nameOrID string) (string, error) {
-	projects, err := e.repository.GetAllProjects(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get projects: %w", err)
-	}
-
-	nameOrID = strings.ToLower(nameOrID)
-
-	// 完全一致で検索
-	for _, project := range projects {
-		if strings.EqualFold(project.Name, nameOrID) {
-			return project.ID, nil
-		}
-	}
-
-	// IDとして直接指定されている可能性をチェック
-	for _, project := range projects {
-		if project.ID == nameOrID {
-			return project.ID, nil
-		}
-	}
-
-	// 部分一致で検索
-	for _, project := range projects {
-		if strings.Contains(strings.ToLower(project.Name), nameOrID) {
-			return project.ID, nil
-		}
-	}
-
-	return "", fmt.Errorf("project not found: %s", nameOrID)
+	return e.repository.FindProjectIDByName(ctx, nameOrID)
 }
 
 // findProjectByID は指定されたIDのプロジェクトを取得する
@@ -757,7 +733,7 @@ func (e *projectExecutor) confirmProjectDeletion(ctx context.Context, params *pr
 
 	// 確認処理（forceフラグが無い場合）
 	if !params.force {
-		if !promptProjectDeletionConfirmation(targetProject) {
+		if !e.promptProjectDeletionConfirmation(targetProject) {
 			return nil, false, nil // キャンセルされた
 		}
 	}
@@ -795,30 +771,38 @@ func (e *projectExecutor) executeProjectUnarchive(ctx context.Context, params *p
 }
 
 // promptProjectDeletionConfirmation はプロジェクト削除の確認プロンプトを表示する
-func promptProjectDeletionConfirmation(project *api.Project) bool {
-	fmt.Printf("⚠️  Are you sure you want to delete this project? (y/N)\n")
-	fmt.Printf("    ID: %s\n", project.ID)
-	fmt.Printf("    Name: %s\n", project.Name)
-	fmt.Printf("    Color: %s\n", project.Color)
+func (e *projectExecutor) promptProjectDeletionConfirmation(project *api.Project) bool {
+	e.output.Warningf("Are you sure you want to delete this project? (y/N)")
+	e.output.Plainf("    ID: %s", project.ID)
+	e.output.Plainf("    Name: %s", project.Name)
+	e.output.Plainf("    Color: %s", project.Color)
 	if project.IsFavorite {
-		fmt.Printf("    Favorite: Yes ⭐\n")
+		e.output.Plainf("    Favorite: Yes ⭐")
 	}
 	if project.Shared {
-		fmt.Printf("    Shared: Yes 👥\n")
+		e.output.Plainf("    Shared: Yes 👥")
 	}
-	fmt.Printf("Enter your choice: ")
+	e.output.PlainNoNewlinef("Enter your choice: ")
 
 	var confirmation string
 	_, err := fmt.Scanln(&confirmation)
 	if err != nil {
-		fmt.Println("❌ Project deletion canceled")
+		e.output.Errorf("Project deletion canceled")
 		return false
 	}
 
 	if confirmation != "y" && confirmation != "Y" {
-		fmt.Println("❌ Project deletion canceled")
+		e.output.Errorf("Project deletion canceled")
 		return false
 	}
 
 	return true
+}
+
+// displaySuccessMessageForProject はプロジェクト用の成功メッセージを表示する
+func (e *projectExecutor) displaySuccessMessageForProject(message string, syncToken string) {
+	e.output.Successf("%s", message)
+	if IsVerbose() && syncToken != "" {
+		e.output.Plainf("Sync token: %s", syncToken)
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/kyokomi/gotodoist/internal/api"
 	"github.com/kyokomi/gotodoist/internal/storage"
@@ -336,4 +337,38 @@ func (c *Repository) UnarchiveProject(ctx context.Context, projectID string) (*a
 	}
 
 	return resp, nil
+}
+
+// FindProjectIDByName はプロジェクト名またはIDからプロジェクトIDを検索する
+// 検索順序: 1. ID完全一致 2. 名前完全一致 3. 名前部分一致
+func (c *Repository) FindProjectIDByName(ctx context.Context, nameOrID string) (string, error) {
+	projects, err := c.GetAllProjects(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+
+	nameOrIDLower := strings.ToLower(nameOrID)
+
+	// 1. ID完全一致（最優先・最高速）
+	for _, project := range projects {
+		if project.ID == nameOrID {
+			return project.ID, nil
+		}
+	}
+
+	// 2. 名前完全一致（大文字小文字を無視）
+	for _, project := range projects {
+		if strings.EqualFold(project.Name, nameOrID) {
+			return project.ID, nil
+		}
+	}
+
+	// 3. 名前部分一致（最後の手段）
+	for _, project := range projects {
+		if strings.Contains(strings.ToLower(project.Name), nameOrIDLower) {
+			return project.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("project not found: %s", nameOrID)
 }

@@ -2,7 +2,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -71,9 +70,6 @@ If the configuration file already exists, it will not be overwritten.`,
 
 // runConfigPath は設定ファイルのパスを表示する
 func runConfigPath(_ *cobra.Command, _ []string) error {
-	ctx := context.Background()
-	_ = ctx // contextは将来の拡張のために用意
-
 	configDir, err := config.GetConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get config directory: %w", err)
@@ -85,9 +81,6 @@ func runConfigPath(_ *cobra.Command, _ []string) error {
 
 // runConfigInit は設定ファイルを初期化する
 func runConfigInit(_ *cobra.Command, _ []string) error {
-	ctx := context.Background()
-	_ = ctx // contextは将来の拡張のために用意
-
 	configDir, err := config.GetConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get config directory: %w", err)
@@ -117,9 +110,6 @@ func runConfigInit(_ *cobra.Command, _ []string) error {
 
 // showConfig は現在の設定を表示する
 func showConfig(_ *cobra.Command, _ []string) error {
-	ctx := context.Background()
-	_ = ctx // contextは将来の拡張のために用意
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)

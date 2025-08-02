@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kyokomi/gotodoist/internal/api"
+	"github.com/kyokomi/gotodoist/internal/cli"
 	"github.com/kyokomi/gotodoist/internal/config"
 	"github.com/kyokomi/gotodoist/internal/factory"
 	"github.com/kyokomi/gotodoist/internal/repository"
@@ -128,7 +129,7 @@ func getTaskListParams(cmd *cobra.Command) *taskListParams {
 
 // runTaskList はタスク一覧表示の実際の処理
 func runTaskList(cmd *cobra.Command, _ []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	setup, err := setupTaskExecution(ctx)
@@ -150,7 +151,7 @@ func runTaskList(cmd *cobra.Command, _ []string) error {
 	filteredTasks := applyTaskFilters(data.tasks, params)
 
 	// 5. 出力
-	displayTaskResults(data.projectsMap, data.sectionsMap, filteredTasks)
+	setup.displayTaskResults(data.projectsMap, data.sectionsMap, filteredTasks)
 
 	return nil
 }
@@ -185,7 +186,7 @@ func getTaskAddParams(cmd *cobra.Command, args []string) *taskAddParams {
 
 // runTaskAdd はタスク追加の実際の処理
 func runTaskAdd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupTaskExecution(ctx)
@@ -204,7 +205,7 @@ func runTaskAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// 4. 結果表示
-	displaySuccessMessage("Task created successfully!", resp.SyncToken)
+	executor.displaySuccessMessage("Task created successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -223,7 +224,7 @@ func getTaskCompleteParams(args []string) *taskCompleteParams {
 
 // runTaskComplete はタスク完了の実際の処理
 func runTaskComplete(_ *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupTaskExecution(ctx)
@@ -242,7 +243,7 @@ func runTaskComplete(_ *cobra.Command, args []string) error {
 	}
 
 	// 4. 結果表示
-	displaySuccessMessage("Task completed successfully!", resp.SyncToken)
+	executor.displaySuccessMessage("Task completed successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -264,7 +265,7 @@ func getTaskDeleteParams(cmd *cobra.Command, args []string) *taskDeleteParams {
 
 // runTaskDelete はタスク削除の実際の処理
 func runTaskDelete(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupTaskExecution(ctx)
@@ -292,7 +293,7 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. 結果表示
-	displayTaskDeleteResult(task, resp)
+	executor.displayTaskDeleteResult(task, resp)
 
 	return nil
 }
@@ -327,7 +328,7 @@ func getTaskUpdateParams(cmd *cobra.Command, args []string) *taskUpdateParams {
 
 // runTaskUpdate はタスク更新の実際の処理
 func runTaskUpdate(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupTaskExecution(ctx)
@@ -346,7 +347,7 @@ func runTaskUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// 4. 結果表示
-	displaySuccessMessage("Task updated successfully!", resp.SyncToken)
+	executor.displaySuccessMessage("Task updated successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -366,7 +367,7 @@ func applyTaskFilters(tasks []api.Item, params *taskListParams) []api.Item {
 
 // filterTasks は指定されたフィルタ式でタスクを絞り込む
 func filterTasks(tasks []api.Item, filter string) []api.Item {
-	var filtered []api.Item
+	filtered := make([]api.Item, 0, len(tasks))
 	filter = strings.ToLower(filter)
 
 	for i := range tasks {
@@ -416,21 +417,22 @@ func matchesFilter(task *api.Item, filter string) bool {
 }
 
 // displayTaskResults はタスク結果を表示する
-func displayTaskResults(projectsMap, sectionsMap map[string]string, tasks []api.Item) {
+func (e *taskExecutor) displayTaskResults(projectsMap, sectionsMap map[string]string, tasks []api.Item) {
 	if len(tasks) == 0 {
-		fmt.Println("📭 No tasks found")
+		e.output.Infof("📭 No tasks found")
 		return
 	}
 
 	// タスクを表示
-	fmt.Printf("📝 Found %d task(s):\n\n", len(tasks))
+	e.output.Listf("Found %d task(s):", len(tasks))
+	e.output.Plainf("")
 	for i := range tasks {
-		displayTask(&tasks[i], projectsMap, sectionsMap)
+		e.displayTask(&tasks[i], projectsMap, sectionsMap)
 	}
 }
 
 // displayTask はタスクを表示する
-func displayTask(task *api.Item, projects map[string]string, sections map[string]string) {
+func (e *taskExecutor) displayTask(task *api.Item, projects map[string]string, sections map[string]string) {
 	priorityIcon := getPriorityIcon(task.Priority)
 
 	// セクション名を取得
@@ -441,31 +443,31 @@ func displayTask(task *api.Item, projects map[string]string, sections map[string
 		}
 	}
 
-	fmt.Printf("%s %s%s\n", priorityIcon, task.Content, sectionName)
+	e.output.Plainf("%s %s%s", priorityIcon, task.Content, sectionName)
 
-	if verbose {
-		fmt.Printf("   ID: %s\n", task.ID)
+	if IsVerbose() {
+		e.output.Plainf("   ID: %s", task.ID)
 		projectName, exists := projects[task.ProjectID]
 		if exists {
-			fmt.Printf("   Project: %s (%s)\n", projectName, task.ProjectID)
+			e.output.Plainf("   Project: %s (%s)", projectName, task.ProjectID)
 		} else {
-			fmt.Printf("   Project: %s\n", task.ProjectID)
+			e.output.Plainf("   Project: %s", task.ProjectID)
 		}
 		if task.Due != nil {
-			fmt.Printf("   Due: %s\n", task.Due.String)
+			e.output.Plainf("   Due: %s", task.Due.String)
 		}
 		if len(task.Labels) > 0 {
-			fmt.Printf("   Labels: %s\n", strings.Join(task.Labels, ", "))
+			e.output.Plainf("   Labels: %s", strings.Join(task.Labels, ", "))
 		}
 		if !task.DateAdded.IsZero() {
-			fmt.Printf("   Created: %s\n", task.DateAdded.Format("2006-01-02 15:04"))
+			e.output.Plainf("   Created: %s", task.DateAdded.Format("2006-01-02 15:04"))
 		} else {
-			fmt.Printf("   Created: Unknown\n")
+			e.output.Plainf("   Created: Unknown")
 		}
 	}
 
-	if task.Description != "" && verbose {
-		fmt.Printf("   Description: %s\n", task.Description)
+	if task.Description != "" && IsVerbose() {
+		e.output.Plainf("   Description: %s", task.Description)
 	}
 }
 
@@ -489,7 +491,7 @@ func filterActiveTasks(tasks []api.Item, showAll bool) []api.Item {
 		return tasks
 	}
 
-	var activeTasks []api.Item
+	activeTasks := make([]api.Item, 0, len(tasks))
 	for i := range tasks {
 		if tasks[i].DateCompleted == nil {
 			activeTasks = append(activeTasks, tasks[i])
@@ -499,23 +501,23 @@ func filterActiveTasks(tasks []api.Item, showAll bool) []api.Item {
 }
 
 // displaySuccessMessage は共通の成功メッセージを表示する
-func displaySuccessMessage(message string, syncToken string) {
-	fmt.Printf("✅ %s\n", message)
-	if verbose && syncToken != "" {
-		fmt.Printf("Sync token: %s\n", syncToken)
+func (e *taskExecutor) displaySuccessMessage(message string, syncToken string) {
+	e.output.Successf("%s", message)
+	if IsVerbose() && syncToken != "" {
+		e.output.Plainf("Sync token: %s", syncToken)
 	}
 }
 
 // displayTaskDeleteResult はタスク削除結果を表示する
-func displayTaskDeleteResult(task *api.Item, resp *api.SyncResponse) {
+func (e *taskExecutor) displayTaskDeleteResult(task *api.Item, resp *api.SyncResponse) {
 	if task == nil || resp == nil {
 		return // キャンセルまたはタスクが見つからない場合
 	}
 
-	fmt.Printf("🗑️  Task deleted successfully!\n")
-	fmt.Printf("    Deleted: %s\n", task.Content)
-	if verbose {
-		fmt.Printf("    Sync token: %s\n", resp.SyncToken)
+	e.output.Successf("🗑️  Task deleted successfully!")
+	e.output.Infof("    Deleted: %s", task.Content)
+	if IsVerbose() {
+		e.output.Plainf("    Sync token: %s", resp.SyncToken)
 	}
 }
 
@@ -523,6 +525,7 @@ func displayTaskDeleteResult(task *api.Item, resp *api.SyncResponse) {
 type taskExecutor struct {
 	cfg        *config.Config
 	repository *repository.Repository
+	output     *cli.Output
 }
 
 // setupTaskExecution はタスク実行環境をセットアップする
@@ -532,7 +535,9 @@ func setupTaskExecution(ctx context.Context) (*taskExecutor, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	repo, err := factory.NewRepository(cfg, verbose)
+	output := cli.New(IsVerbose())
+
+	repo, err := factory.NewRepository(cfg, IsVerbose())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Repository: %w", err)
 	}
@@ -540,7 +545,7 @@ func setupTaskExecution(ctx context.Context) (*taskExecutor, error) {
 	// Repositoryの初期化
 	if err := repo.Initialize(ctx); err != nil {
 		if closeErr := repo.Close(); closeErr != nil {
-			fmt.Printf("Warning: failed to close repository after initialization error: %v\n", closeErr)
+			output.Warningf("failed to close repository after initialization error: %v", closeErr)
 		}
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
@@ -548,13 +553,14 @@ func setupTaskExecution(ctx context.Context) (*taskExecutor, error) {
 	return &taskExecutor{
 		cfg:        cfg,
 		repository: repo,
+		output:     output,
 	}, nil
 }
 
 // cleanup はRepositoryのリソースクリーンアップを行う
 func (e *taskExecutor) cleanup() {
 	if err := e.repository.Close(); err != nil {
-		fmt.Printf("Warning: failed to close repository: %v\n", err)
+		e.output.Warningf("failed to close repository: %v", err)
 	}
 }
 
@@ -567,7 +573,7 @@ func (e *taskExecutor) buildProjectsMap(ctx context.Context, verbose bool) map[s
 	projects, err := e.repository.GetAllProjects(ctx)
 	if err != nil {
 		// プロジェクト情報の取得に失敗してもタスク表示は続行
-		fmt.Printf("Warning: Failed to load project names: %v\n", err)
+		e.output.Warningf("Failed to load project names: %v", err)
 		return make(map[string]string)
 	}
 
@@ -583,7 +589,7 @@ func (e *taskExecutor) buildSectionsMap(ctx context.Context) map[string]string {
 	sections, err := e.repository.GetAllSections(ctx)
 	if err != nil {
 		// セクション情報の取得に失敗してもタスク表示は続行
-		fmt.Printf("Warning: Failed to load section names: %v\n", err)
+		e.output.Warningf("Failed to load section names: %v", err)
 		return make(map[string]string)
 	}
 
@@ -594,38 +600,9 @@ func (e *taskExecutor) buildSectionsMap(ctx context.Context) map[string]string {
 	return sectionsMap
 }
 
-// findProjectIDByName はプロジェクト検索を実行する
+// findProjectIDByName はプロジェクト検索を実行する（Repository層に移植済み）
 func (e *taskExecutor) findProjectIDByName(ctx context.Context, nameOrID string) (string, error) {
-	// 全プロジェクトを取得
-	projects, err := e.repository.GetAllProjects(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get projects: %w", err)
-	}
-
-	nameOrID = strings.ToLower(nameOrID)
-
-	// 完全一致で検索
-	for _, project := range projects {
-		if strings.EqualFold(project.Name, nameOrID) {
-			return project.ID, nil
-		}
-	}
-
-	// 部分一致で検索
-	for _, project := range projects {
-		if strings.Contains(strings.ToLower(project.Name), nameOrID) {
-			return project.ID, nil
-		}
-	}
-
-	// IDとして直接指定されている可能性をチェック
-	for _, project := range projects {
-		if project.ID == nameOrID {
-			return project.ID, nil
-		}
-	}
-
-	return "", fmt.Errorf("project not found: %s", nameOrID)
+	return e.repository.FindProjectIDByName(ctx, nameOrID)
 }
 
 // fetchAllTaskListData は必要なデータを全て取得する
@@ -633,7 +610,7 @@ func (e *taskExecutor) fetchAllTaskListData(ctx context.Context, params *taskLis
 	repo := e.repository
 
 	// プロジェクト情報を取得（ローカル優先）
-	projectsMap := e.buildProjectsMap(ctx, verbose)
+	projectsMap := e.buildProjectsMap(ctx, IsVerbose())
 
 	// セクション情報を取得（ローカル優先）
 	sectionsMap := e.buildSectionsMap(ctx)
@@ -744,17 +721,18 @@ func (e *taskExecutor) confirmTaskDeletion(ctx context.Context, params *taskDele
 	}
 
 	if targetTask == nil {
-		fmt.Printf("❌ Task with ID '%s' not found.\n\n", params.taskID)
-		fmt.Printf("💡 To find the correct task ID, use one of these commands:\n")
-		fmt.Printf("   gotodoist task list -v                    # Show all tasks with IDs\n")
-		fmt.Printf("   gotodoist task list -v -f \"keyword\"       # Search tasks containing 'keyword'\n")
-		fmt.Printf("   gotodoist task list -v -p \"project name\"  # Show tasks in specific project\n")
+		e.output.Errorf("Task with ID '%s' not found.", params.taskID)
+		e.output.Plainf("")
+		e.output.Infof("💡 To find the correct task ID, use one of these commands:")
+		e.output.Infof("   gotodoist task list -v                    # Show all tasks with IDs")
+		e.output.Infof("   gotodoist task list -v -f \"keyword\"       # Search tasks containing 'keyword'")
+		e.output.Infof("   gotodoist task list -v -p \"project name\"  # Show tasks in specific project")
 		return nil, false, nil // エラーではなく、単にタスクが見つからない
 	}
 
 	// 確認処理（forceフラグが無い場合）
 	if !params.force {
-		if !promptTaskDeletionConfirmation(targetTask) {
+		if !e.promptTaskDeletionConfirmation(targetTask) {
 			return nil, false, nil // キャンセルされた
 		}
 	}
@@ -826,26 +804,26 @@ func (e *taskExecutor) buildUpdateTaskRequest(params *taskUpdateParams) (*api.Up
 }
 
 // promptTaskDeletionConfirmation はタスク削除の確認プロンプトを表示する
-func promptTaskDeletionConfirmation(task *api.Item) bool {
-	fmt.Printf("⚠️  Are you sure you want to delete this task? (y/N)\n")
-	fmt.Printf("    ID: %s\n", task.ID)
-	fmt.Printf("    Content: %s\n", task.Content)
+func (e *taskExecutor) promptTaskDeletionConfirmation(task *api.Item) bool {
+	e.output.Warningf("Are you sure you want to delete this task? (y/N)")
+	e.output.Plainf("    ID: %s", task.ID)
+	e.output.Plainf("    Content: %s", task.Content)
 	if task.Description != "" {
-		fmt.Printf("    Description: %s\n", task.Description)
+		e.output.Plainf("    Description: %s", task.Description)
 	}
 	if len(task.Labels) > 0 {
-		fmt.Printf("    Labels: %s\n", strings.Join(task.Labels, ", "))
+		e.output.Plainf("    Labels: %s", strings.Join(task.Labels, ", "))
 	}
-	fmt.Printf("Enter your choice: ")
+	e.output.PlainNoNewlinef("Enter your choice: ")
 
 	var confirmation string
 	_, err := fmt.Scanln(&confirmation)
 	if err != nil {
-		fmt.Println("❌ Task deletion canceled")
+		e.output.Errorf("Task deletion canceled")
 		return false
 	}
 	if confirmation != "y" && confirmation != "Y" {
-		fmt.Println("❌ Task deletion canceled")
+		e.output.Errorf("Task deletion canceled")
 		return false
 	}
 	return true

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/kyokomi/gotodoist/internal/cli"
 	"github.com/kyokomi/gotodoist/internal/config"
 	"github.com/kyokomi/gotodoist/internal/factory"
 	"github.com/kyokomi/gotodoist/internal/repository"
@@ -57,7 +58,7 @@ var syncStatusCmd = &cobra.Command{
 
 // runSync は増分同期の実際の処理
 func runSync(_ *cobra.Command, _ []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupSyncExecution(ctx)
@@ -78,14 +79,14 @@ func runSync(_ *cobra.Command, _ []string) error {
 	}
 
 	// 4. 結果表示
-	displaySyncResult(status)
+	executor.displaySyncResult(status)
 
 	return nil
 }
 
 // runSyncInit は初期同期の実際の処理
 func runSyncInit(_ *cobra.Command, _ []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupSyncExecution(ctx)
@@ -100,21 +101,21 @@ func runSyncInit(_ *cobra.Command, _ []string) error {
 	}
 
 	// 3. 初期同期を実行
-	fmt.Println("🔄 Starting initial synchronization...")
+	executor.output.Syncf("Starting initial synchronization...")
 	status, err := executor.executeInitialSync(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run initial sync: %w", err)
 	}
 
 	// 4. 結果表示
-	displayInitialSyncResult(status)
+	executor.displayInitialSyncResult(status)
 
 	return nil
 }
 
 // runSyncStatus は同期状態表示の実際の処理
 func runSyncStatus(_ *cobra.Command, _ []string) error {
-	ctx := context.Background()
+	ctx := createBaseContext()
 
 	// 1. セットアップ
 	executor, err := setupSyncExecution(ctx)
@@ -125,7 +126,7 @@ func runSyncStatus(_ *cobra.Command, _ []string) error {
 
 	// 2. ローカルストレージの確認
 	if !executor.isLocalStorageEnabled() {
-		displayLocalStorageDisabled()
+		executor.displayLocalStorageDisabled()
 		return nil
 	}
 
@@ -136,53 +137,54 @@ func runSyncStatus(_ *cobra.Command, _ []string) error {
 	}
 
 	// 4. 結果表示
-	displaySyncStatus(status)
+	executor.displaySyncStatus(status)
 
 	return nil
 }
 
 // displaySyncResult は同期結果を表示する
-func displaySyncResult(status *sync.Status) {
-	fmt.Println("✅ Synchronization completed successfully!")
+func (e *syncExecutor) displaySyncResult(status *sync.Status) {
+	e.output.Successf("Synchronization completed successfully!")
 	if status != nil {
-		fmt.Printf("📊 %s\n", status.String())
+		e.output.Infof("📊 %s", status.String())
 	}
 }
 
 // displayInitialSyncResult は初期同期結果を表示する
-func displayInitialSyncResult(status *sync.Status) {
-	fmt.Println("✅ Initial synchronization completed successfully!")
+func (e *syncExecutor) displayInitialSyncResult(status *sync.Status) {
+	e.output.Successf("Initial synchronization completed successfully!")
 	if status != nil {
-		fmt.Printf("📊 %s\n", status.String())
+		e.output.Infof("📊 %s", status.String())
 	}
 }
 
 // displaySyncStatus は同期状態を表示する
-func displaySyncStatus(status *sync.Status) {
-	fmt.Printf("📊 Synchronization Status:\n")
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Printf("%s\n", status.String())
-	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+func (e *syncExecutor) displaySyncStatus(status *sync.Status) {
+	e.output.Infof("📊 Synchronization Status:")
+	e.output.Plainf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	e.output.Plainf("%s", status.String())
+	e.output.Plainf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	if status.InitialSyncDone {
-		fmt.Printf("💡 Use 'gotodoist sync' for incremental sync\n")
-		fmt.Printf("💡 Use 'gotodoist sync init' for full resync\n")
+		e.output.Infof("💡 Use 'gotodoist sync' for incremental sync")
+		e.output.Infof("💡 Use 'gotodoist sync init' for full resync")
 	} else {
-		fmt.Printf("⚠️  Initial sync has not been completed\n")
-		fmt.Printf("💡 Use 'gotodoist sync init' to initialize local storage\n")
+		e.output.Warningf("Initial sync has not been completed")
+		e.output.Infof("💡 Use 'gotodoist sync init' to initialize local storage")
 	}
 }
 
 // displayLocalStorageDisabled はローカルストレージ無効時のメッセージを表示する
-func displayLocalStorageDisabled() {
-	fmt.Println("📭 Local storage is disabled")
-	fmt.Printf("   Enable it in %s to use local-first features\n", "~/.config/gotodoist/config.yaml")
+func (e *syncExecutor) displayLocalStorageDisabled() {
+	e.output.Infof("📭 Local storage is disabled")
+	e.output.Infof("   Enable it in %s to use local-first features", "~/.config/gotodoist/config.yaml")
 }
 
 // syncExecutor は同期実行に必要な情報をまとめた構造体
 type syncExecutor struct {
 	cfg        *config.Config
 	repository *repository.Repository
+	output     *cli.Output
 }
 
 // setupSyncExecution は同期実行環境をセットアップする
@@ -192,7 +194,9 @@ func setupSyncExecution(ctx context.Context) (*syncExecutor, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	repo, err := factory.NewRepository(cfg, verbose)
+	output := cli.New(IsVerbose())
+
+	repo, err := factory.NewRepository(cfg, IsVerbose())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create repository: %w", err)
 	}
@@ -201,7 +205,7 @@ func setupSyncExecution(ctx context.Context) (*syncExecutor, error) {
 	if cfg.LocalStorage.Enabled {
 		if err := repo.Initialize(ctx); err != nil {
 			if closeErr := repo.Close(); closeErr != nil {
-				fmt.Printf("Warning: failed to close repository after initialization error: %v\n", closeErr)
+				output.Warningf("failed to close repository after initialization error: %v", closeErr)
 			}
 			return nil, fmt.Errorf("failed to initialize repository: %w", err)
 		}
@@ -210,13 +214,14 @@ func setupSyncExecution(ctx context.Context) (*syncExecutor, error) {
 	return &syncExecutor{
 		cfg:        cfg,
 		repository: repo,
+		output:     output,
 	}, nil
 }
 
 // cleanup はRepositoryのリソースクリーンアップを行う
 func (e *syncExecutor) cleanup() {
 	if err := e.repository.Close(); err != nil {
-		fmt.Printf("Warning: failed to close repository: %v\n", err)
+		e.output.Warningf("failed to close repository: %v", err)
 	}
 }
 
