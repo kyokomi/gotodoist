@@ -17,9 +17,13 @@ func init() {
 	// サブコマンドを追加
 	syncCmd.AddCommand(syncInitCmd)
 	syncCmd.AddCommand(syncStatusCmd)
+	syncCmd.AddCommand(syncResetCmd)
 
 	// syncコマンドをルートコマンドに追加
 	rootCmd.AddCommand(syncCmd)
+
+	// sync reset用のフラグ
+	syncResetCmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
 }
 
 // syncCmd は同期関連のコマンド
@@ -54,6 +58,22 @@ var syncStatusCmd = &cobra.Command{
 	Short: "Show synchronization status",
 	Long:  `Display current synchronization status including last sync time and data counts.`,
 	RunE:  runSyncStatus,
+}
+
+// syncResetCmd はローカルデータリセットコマンド
+var syncResetCmd = &cobra.Command{
+	Use:   "reset",
+	Short: "Reset local storage and clear all cached data",
+	Long: `Reset local storage by clearing all cached data including tasks, projects, and sections.
+	
+This command is useful for:
+- Fixing data corruption issues
+- Switching to a different API token
+- Starting fresh with a clean local database
+- Resolving sync conflicts
+
+After reset, you may want to run 'gotodoist sync init' to repopulate the local storage.`,
+	RunE: runSyncReset,
 }
 
 // runSync は増分同期の実際の処理
@@ -251,4 +271,85 @@ func (e *syncExecutor) executeInitialSync(ctx context.Context) (*sync.Status, er
 // getSyncStatus は同期状態を取得する
 func (e *syncExecutor) getSyncStatus() (*sync.Status, error) {
 	return e.repository.GetSyncStatus()
+}
+
+// runSyncReset はローカルデータリセットの実際の処理
+func runSyncReset(cmd *cobra.Command, _ []string) error {
+	ctx := createBaseContext()
+
+	// 1. セットアップ
+	executor, err := setupSyncExecution(ctx)
+	if err != nil {
+		return err
+	}
+	defer executor.cleanup()
+
+	// 2. ローカルストレージの確認
+	if !executor.isLocalStorageEnabled() {
+		return fmt.Errorf("local storage is disabled. Enable it in config to use reset command")
+	}
+
+	// 3. 確認プロンプト（forceフラグが無い場合）
+	force, _ := cmd.Flags().GetBool("force")
+	if !force {
+		if !executor.promptResetConfirmation() {
+			return nil // ユーザーがキャンセル
+		}
+	}
+
+	// 4. リセット実行
+	if err := executor.executeReset(ctx); err != nil {
+		return fmt.Errorf("failed to reset local storage: %w", err)
+	}
+
+	// 5. 結果表示
+	executor.displayResetResult()
+
+	return nil
+}
+
+// promptResetConfirmation はリセットの確認プロンプトを表示する
+func (e *syncExecutor) promptResetConfirmation() bool {
+	e.output.Warningf("⚠️  WARNING: This will delete ALL local cached data!")
+	e.output.Plainf("")
+	e.output.Plainf("This includes:")
+	e.output.Plainf("  • All cached tasks")
+	e.output.Plainf("  • All cached projects")
+	e.output.Plainf("  • All cached sections")
+	e.output.Plainf("  • Sync status and tokens")
+	e.output.Plainf("")
+	e.output.Plainf("Your data in Todoist cloud will NOT be affected.")
+	e.output.Plainf("You can repopulate local storage by running 'gotodoist sync init'.")
+	e.output.Plainf("")
+	e.output.PlainNoNewlinef("Are you sure you want to reset local storage? (y/N): ")
+
+	var confirmation string
+	_, err := fmt.Scanln(&confirmation)
+	if err != nil {
+		e.output.Errorf("Reset canceled")
+		return false
+	}
+
+	if confirmation != "y" && confirmation != "Y" {
+		e.output.Errorf("Reset canceled")
+		return false
+	}
+
+	return true
+}
+
+// executeReset はローカルストレージのリセットを実行する
+func (e *syncExecutor) executeReset(ctx context.Context) error {
+	// Repositoryにリセットメソッドがあるかチェック、なければ直接ストレージを操作
+	// この実装では、新しいメソッドをRepositoryに追加する必要がある
+	return e.repository.ResetLocalStorage(ctx)
+}
+
+// displayResetResult はリセット結果を表示する
+func (e *syncExecutor) displayResetResult() {
+	e.output.Successf("🗑️  Local storage reset completed!")
+	e.output.Plainf("")
+	e.output.Infof("💡 Next steps:")
+	e.output.Plainf("  • Run 'gotodoist sync init' to repopulate local storage")
+	e.output.Plainf("  • Or use commands directly (they will fetch from API)")
 }

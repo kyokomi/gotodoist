@@ -261,6 +261,27 @@ func (s *SQLiteDB) getTaskLabels(taskID string) ([]string, error) {
 	return labels, nil
 }
 
+// DeleteTasksByProject はプロジェクトに属する全タスクを削除する（論理削除）
+func (s *SQLiteDB) DeleteTasksByProject(projectID string) error {
+	query := "UPDATE tasks SET is_deleted = TRUE, updated_at = strftime('%s', 'now') WHERE project_id = ? AND is_deleted = FALSE"
+	result, err := s.db.Exec(query, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tasks for project %s: %w", projectID, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	// デバッグ情報
+	if rowsAffected > 0 {
+		fmt.Printf("Deleted %d tasks for project %s\n", rowsAffected, projectID)
+	}
+
+	return nil
+}
+
 // nullString はstring値をsql.NullStringに変換する
 func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
