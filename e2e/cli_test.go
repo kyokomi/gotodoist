@@ -45,7 +45,7 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		// 初期同期でサーバーデータを取得
-		cmd = exec.Command(binaryPath, "sync")
+		cmd = exec.Command(binaryPath, "sync", "init")
 		cmd.Env = env
 		if output, err := cmd.Output(); err != nil {
 			t.Fatalf("sync init失敗: %v", err)
@@ -375,16 +375,9 @@ func TestProjectLifecycle(t *testing.T) {
 
 	// ステップ12: 全タスク一覧を取得してプロジェクトと一緒にタスクが削除されていることを確認
 	t.Run("12. 全タスク一覧でカスケード削除確認", func(t *testing.T) {
-		// プロジェクト削除後に同期を実行してAPI側の変更をローカルに反映
-		cmd := exec.Command(binaryPath, "sync")
-		cmd.Env = env
-		if syncOutput, err := cmd.Output(); err != nil {
-			t.Logf("プロジェクト削除後の同期に失敗: %v", err)
-		} else {
-			t.Logf("プロジェクト削除後の同期完了: %s", strings.TrimSpace(string(syncOutput)))
-		}
-
-		cmd = exec.Command(binaryPath, "task", "list")
+		// プロジェクト削除時に既にローカルストレージからタスクが削除され、
+		// さらにIncrementalSyncも実行されているため、追加のsyncは不要
+		cmd := exec.Command(binaryPath, "task", "list")
 		cmd.Env = env
 		output, err := cmd.Output()
 		if err != nil {
@@ -419,7 +412,7 @@ func TestProjectLifecycle(t *testing.T) {
 		}
 
 		// 再度初期同期でサーバーデータを取得
-		cmd = exec.Command(binaryPath, "sync")
+		cmd = exec.Command(binaryPath, "sync", "init")
 		cmd.Env = env
 		if output, err := cmd.Output(); err != nil {
 			t.Fatalf("最終sync init失敗: %v", err)
@@ -602,7 +595,7 @@ func findTaskIDByContent(binaryPath string, env []string, projectName, taskConte
 	// 出力をパースしてタスクIDを抽出
 	lines := strings.Split(string(output), "\n")
 	var currentTaskContent string
-	var currentTaskID string
+	var pendingTaskContent string
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -611,18 +604,23 @@ func findTaskIDByContent(binaryPath string, env []string, projectName, taskConte
 		if strings.HasPrefix(line, "⚪") {
 			// "⚪ Task-1-20250802-173504" からタスク内容を抽出
 			if strings.Contains(line, " ") {
-				currentTaskContent = strings.TrimSpace(line[2:]) // "⚪ " を除去
+				pendingTaskContent = strings.TrimSpace(line[2:]) // "⚪ " を除去
 			}
 		}
 
 		// IDの行（"   ID: " で始まる）
 		if strings.HasPrefix(line, "   ID: ") {
-			currentTaskID = strings.TrimSpace(line[7:]) // "   ID: " を除去
+			// 前のタスク内容をコミット
+			currentTaskContent = pendingTaskContent
+			currentTaskID := strings.TrimSpace(line[7:]) // "   ID: " を除去
 
 			// 探しているタスクが見つかったらIDを返す
 			if currentTaskContent == taskContent {
 				return currentTaskID, nil
 			}
+
+			// 次のタスクのために現在のタスク内容をクリア
+			pendingTaskContent = ""
 		}
 	}
 
