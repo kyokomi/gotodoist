@@ -10,18 +10,6 @@ import (
 
 // InsertTask はタスクをローカルDBに挿入する
 func (s *SQLiteDB) InsertTask(task api.Item) error {
-	query := `
-		INSERT OR REPLACE INTO tasks (
-			id, user_id, project_id, section_id, parent_id, content, description,
-			priority, child_order, day_order, is_collapsed, is_completed, is_deleted,
-			assigned_by_uid, responsible_uid, sync_id,
-			due_date, due_string, due_lang, due_is_recurring, due_timezone,
-			added_at, completed_at, updated_at
-		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now')
-		)
-	`
-
 	var dueDate, dueString, dueLang, dueTimezone sql.NullString
 	var dueIsRecurring sql.NullBool
 	if task.Due != nil {
@@ -37,8 +25,19 @@ func (s *SQLiteDB) InsertTask(task api.Item) error {
 		completedAt = sql.NullInt64{Int64: task.DateCompleted.Unix(), Valid: true}
 	}
 
-	_, err := s.db.Exec(query,
-		task.ID, task.UserID, task.ProjectID,
+	// まずUPDATEを試行
+	updateQuery := `
+		UPDATE tasks SET
+			user_id = ?, project_id = ?, section_id = ?, parent_id = ?, content = ?, description = ?,
+			priority = ?, child_order = ?, day_order = ?, is_collapsed = ?, is_completed = ?, is_deleted = ?,
+			assigned_by_uid = ?, responsible_uid = ?, sync_id = ?,
+			due_date = ?, due_string = ?, due_lang = ?, due_is_recurring = ?, due_timezone = ?,
+			added_at = ?, completed_at = ?, updated_at = strftime('%s', 'now')
+		WHERE id = ?
+	`
+
+	result, err := s.db.Exec(updateQuery,
+		task.UserID, task.ProjectID,
 		nullString(task.SectionID), nullString(task.ParentID),
 		task.Content, task.Description,
 		task.Priority, task.ChildOrder, task.DayOrder,
@@ -47,10 +46,48 @@ func (s *SQLiteDB) InsertTask(task api.Item) error {
 		nullString(task.SyncID),
 		dueDate, dueString, dueLang, dueIsRecurring, dueTimezone,
 		task.DateAdded.Unix(), completedAt,
+		task.ID,
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to insert task: %w", err)
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	// 更新された行数をチェック
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	// 更新された行がない場合はINSERT
+	if rowsAffected == 0 {
+		insertQuery := `
+			INSERT INTO tasks (
+				id, user_id, project_id, section_id, parent_id, content, description,
+				priority, child_order, day_order, is_collapsed, is_completed, is_deleted,
+				assigned_by_uid, responsible_uid, sync_id,
+				due_date, due_string, due_lang, due_is_recurring, due_timezone,
+				added_at, completed_at, updated_at
+			) VALUES (
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now')
+			)
+		`
+
+		_, err := s.db.Exec(insertQuery,
+			task.ID, task.UserID, task.ProjectID,
+			nullString(task.SectionID), nullString(task.ParentID),
+			task.Content, task.Description,
+			task.Priority, task.ChildOrder, task.DayOrder,
+			task.Collapsed, task.DateCompleted != nil, task.IsDeleted,
+			nullString(task.AssignedByUID), nullString(task.ResponsibleUID),
+			nullString(task.SyncID),
+			dueDate, dueString, dueLang, dueIsRecurring, dueTimezone,
+			task.DateAdded.Unix(), completedAt,
+		)
+
+		if err != nil {
+			return fmt.Errorf("failed to insert task: %w", err)
+		}
 	}
 
 	// ラベルがある場合は関連テーブルにも挿入
@@ -259,6 +296,27 @@ func (s *SQLiteDB) getTaskLabels(taskID string) ([]string, error) {
 	}
 
 	return labels, nil
+}
+
+// DeleteTasksByProject はプロジェクトに属する全タスクを削除する（論理削除）
+func (s *SQLiteDB) DeleteTasksByProject(projectID string) error {
+	query := "UPDATE tasks SET is_deleted = TRUE, updated_at = strftime('%s', 'now') WHERE project_id = ? AND is_deleted = FALSE"
+	result, err := s.db.Exec(query, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tasks for project %s: %w", projectID, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	// デバッグ情報
+	if rowsAffected > 0 {
+		fmt.Printf("Deleted %d tasks for project %s\n", rowsAffected, projectID)
+	}
+
+	return nil
 }
 
 // nullString はstring値をsql.NullStringに変換する

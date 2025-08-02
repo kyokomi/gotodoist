@@ -1,4 +1,4 @@
-.PHONY: all build test coverage lint fmt clean install help
+.PHONY: all build test test-e2e coverage lint fmt clean install help ci-e2e
 
 # デフォルトターゲット
 all: fmt lint test build
@@ -23,6 +23,18 @@ install: ## アプリケーションをインストール
 # テスト実行
 test: ## テストを実行
 	go test -v -race ./...
+
+# E2Eテスト実行
+test-e2e: ## E2Eテストを実行（TODOIST_API_TOKEN環境変数が必要）
+	@if [ -z "$(TODOIST_API_TOKEN)" ]; then \
+		echo "TODOIST_API_TOKEN環境変数を設定してください"; \
+		echo "使用方法:"; \
+		echo "  TODOIST_API_TOKEN=your_token make test-e2e"; \
+		echo "または"; \
+		echo "  make test-e2e TODOIST_API_TOKEN=your_token"; \
+		exit 1; \
+	fi
+	go test -v -race -tags=e2e ./e2e/...
 
 # カバレッジ付きテスト
 coverage: ## カバレッジ付きでテストを実行
@@ -95,6 +107,9 @@ release: ## リリース用ビルドを作成
 
 # CI用のチェック（全部実行）
 ci: fmt lint test ## CI環境で実行するチェック
+
+# CI用のE2Eテスト付きチェック
+ci-e2e: fmt lint test test-e2e ## CI環境でE2Eテスト付きで実行するチェック
 
 # ヘルプ表示
 help: ## このヘルプメッセージを表示

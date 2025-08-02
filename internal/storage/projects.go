@@ -9,27 +9,59 @@ import (
 
 // InsertProject はプロジェクトをローカルDBに挿入する
 func (s *SQLiteDB) InsertProject(project api.Project) error {
-	query := `
-		INSERT OR REPLACE INTO projects (
-			id, name, color, parent_id, child_order, collapsed, shared,
-			is_deleted, is_archived, is_favorite, inbox_project, team_inbox,
-			sync_id, updated_at
-		) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now')
-		)
+	// まずUPDATEを試行
+	updateQuery := `
+		UPDATE projects SET
+			name = ?, color = ?, parent_id = ?, child_order = ?, collapsed = ?, shared = ?,
+			is_deleted = ?, is_archived = ?, is_favorite = ?, inbox_project = ?, team_inbox = ?,
+			sync_id = ?, updated_at = strftime('%s', 'now')
+		WHERE id = ?
 	`
 
-	_, err := s.db.Exec(query,
-		project.ID, project.Name, project.Color,
+	result, err := s.db.Exec(updateQuery,
+		project.Name, project.Color,
 		nullString(project.ParentID),
 		project.ChildOrder, project.Collapsed, project.Shared,
 		project.IsDeleted, project.IsArchived, project.IsFavorite,
 		project.InboxProject, project.TeamInbox,
 		nullString(project.SyncID),
+		project.ID,
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to insert project: %w", err)
+		return fmt.Errorf("failed to update project: %w", err)
+	}
+
+	// 更新された行数をチェック
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	// 更新された行がない場合はINSERT
+	if rowsAffected == 0 {
+		insertQuery := `
+			INSERT INTO projects (
+				id, name, color, parent_id, child_order, collapsed, shared,
+				is_deleted, is_archived, is_favorite, inbox_project, team_inbox,
+				sync_id, updated_at
+			) VALUES (
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now')
+			)
+		`
+
+		_, err := s.db.Exec(insertQuery,
+			project.ID, project.Name, project.Color,
+			nullString(project.ParentID),
+			project.ChildOrder, project.Collapsed, project.Shared,
+			project.IsDeleted, project.IsArchived, project.IsFavorite,
+			project.InboxProject, project.TeamInbox,
+			nullString(project.SyncID),
+		)
+
+		if err != nil {
+			return fmt.Errorf("failed to insert project: %w", err)
+		}
 	}
 
 	return nil

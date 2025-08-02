@@ -139,3 +139,46 @@ func (s *SQLiteDB) BeginTx() (*sql.Tx, error) {
 func (s *SQLiteDB) GetDB() *sql.DB {
 	return s.db
 }
+
+// ResetAllData はローカルストレージのすべてのデータを削除する
+func (s *SQLiteDB) ResetAllData() error {
+	// トランザクション内ですべてのテーブルをクリア
+	tx, err := s.BeginTx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				// ロールバックのエラーはログに記録するが、元のエラーを優先
+				fmt.Printf("Failed to rollback transaction: %v\n", rollbackErr)
+			}
+		}
+	}()
+
+	// 削除クエリのリスト
+	queries := []string{
+		"DELETE FROM tasks",
+		"DELETE FROM projects",
+		"DELETE FROM sections",
+		"DELETE FROM sync_state",
+	}
+
+	// 各テーブルをクリア
+	for _, query := range queries {
+		if _, err := tx.Exec(query); err != nil {
+			return fmt.Errorf("failed to execute query '%s': %w", query, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// VACUUMはトランザクション外で実行
+	if _, err := s.db.Exec("VACUUM"); err != nil {
+		return fmt.Errorf("failed to vacuum database: %w", err)
+	}
+
+	return nil
+}

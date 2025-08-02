@@ -136,19 +136,11 @@ func (c *Repository) CreateTask(ctx context.Context, req *api.CreateTaskRequest)
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は即座に反映
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		// temp_id_mappingから実際のタスクを取得
-		for tempID, realID := range resp.TempIDMapping {
-			if tempID != realID {
-				// 新しく作成されたタスクをローカルに保存
-				// TODO: 実際のタスクオブジェクトが必要
-				// 現時点では sync_token を更新するのみ
-				if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-					log.Printf("Failed to update sync token after task creation: %v", err)
-				}
-				break
-			}
+		// 作成後に増分同期を実行して新しいタスクを取得
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after task creation: %v", err)
 		}
 	}
 
@@ -163,10 +155,11 @@ func (c *Repository) UpdateTask(ctx context.Context, taskID string, req *api.Upd
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after task update: %v", err)
+		// 更新後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after task update: %v", err)
 		}
 	}
 
@@ -187,8 +180,9 @@ func (c *Repository) DeleteTask(ctx context.Context, taskID string) (*api.SyncRe
 			log.Printf("Failed to delete task from local storage: %v", err)
 		}
 
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after task deletion: %v", err)
+		// 削除後に増分同期を実行してAPI側の変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after task deletion: %v", err)
 		}
 	}
 
@@ -253,10 +247,11 @@ func (c *Repository) CreateProject(ctx context.Context, req *api.CreateProjectRe
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project creation: %v", err)
+		// 作成後に増分同期を実行して新しいプロジェクトを取得
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project creation: %v", err)
 		}
 	}
 
@@ -271,10 +266,11 @@ func (c *Repository) UpdateProject(ctx context.Context, projectID string, req *a
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project update: %v", err)
+		// 更新後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project update: %v", err)
 		}
 	}
 
@@ -291,12 +287,19 @@ func (c *Repository) DeleteProject(ctx context.Context, projectID string) (*api.
 
 	// ローカルストレージが有効な場合は即座に反映
 	if c.config.Enabled {
+		// プロジェクトに属するタスクを先に削除（カスケード削除）
+		if err := c.storage.DeleteTasksByProject(projectID); err != nil {
+			log.Printf("Failed to delete tasks for project %s: %v", projectID, err)
+		}
+
+		// プロジェクト自体を削除
 		if err := c.storage.DeleteProject(projectID); err != nil {
 			log.Printf("Failed to delete project from local storage: %v", err)
 		}
 
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project deletion: %v", err)
+		// 削除後に増分同期を実行してAPI側の変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project deletion: %v", err)
 		}
 	}
 
@@ -311,10 +314,11 @@ func (c *Repository) ArchiveProject(ctx context.Context, projectID string) (*api
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project archive: %v", err)
+		// アーカイブ後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project archive: %v", err)
 		}
 	}
 
@@ -329,10 +333,11 @@ func (c *Repository) UnarchiveProject(ctx context.Context, projectID string) (*a
 		return nil, err
 	}
 
-	// ローカルストレージが有効な場合は sync_token を更新
+	// ローカルストレージが有効な場合は増分同期で最新データを取得
 	if c.config.Enabled {
-		if err := c.storage.SetSyncToken(resp.SyncToken); err != nil {
-			log.Printf("Failed to update sync token after project unarchive: %v", err)
+		// アンアーカイブ後に増分同期を実行して変更をローカルに反映
+		if err := c.syncManager.IncrementalSync(ctx); err != nil {
+			log.Printf("Failed to sync after project unarchive: %v", err)
 		}
 	}
 
@@ -371,4 +376,13 @@ func (c *Repository) FindProjectIDByName(ctx context.Context, nameOrID string) (
 	}
 
 	return "", fmt.Errorf("project not found: %s", nameOrID)
+}
+
+// ResetLocalStorage はローカルストレージを完全にリセットする
+func (c *Repository) ResetLocalStorage(_ context.Context) error {
+	if !c.config.Enabled {
+		return fmt.Errorf("local storage is disabled")
+	}
+
+	return c.storage.ResetAllData()
 }
