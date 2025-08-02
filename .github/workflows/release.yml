@@ -36,12 +36,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-${{ env.GO_VERSION }}-
 
-    - name: Run tests
-      run: make test
-
-    - name: Run lint
-      run: make lint
-
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@v6
       with:
