@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/kyokomi/gotodoist/internal/config"
+	"github.com/kyokomi/gotodoist/internal/factory"
 	"github.com/kyokomi/gotodoist/internal/repository"
 	"github.com/kyokomi/gotodoist/internal/sync"
 )
@@ -191,7 +192,7 @@ func setupSyncExecution(ctx context.Context) (*syncExecutor, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	repo, err := cfg.NewRepository(verbose)
+	repo, err := factory.NewRepository(cfg, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create repository: %w", err)
 	}

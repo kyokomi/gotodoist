@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/kyokomi/gotodoist/internal/api"
 	"github.com/kyokomi/gotodoist/internal/repository"
 )
 
@@ -93,39 +92,6 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &config, nil
-}
-
-// NewAPIClient は設定からAPIクライアントを作成する
-func (c *Config) NewAPIClient() (*api.Client, error) {
-	client, err := api.NewClient(c.APIToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create API client: %w", err)
-	}
-
-	if c.BaseURL != "" {
-		if err := client.SetBaseURL(c.BaseURL); err != nil {
-			return nil, fmt.Errorf("failed to set base URL: %w", err)
-		}
-	}
-
-	return client, nil
-}
-
-// NewRepository は設定からRepositoryを作成する
-func (c *Config) NewRepository(verbose bool) (*repository.Repository, error) {
-	// 基本APIクライアントを作成
-	apiClient, err := c.NewAPIClient()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create API client: %w", err)
-	}
-
-	// Repositoryを作成
-	localRepository, err := repository.NewRepository(apiClient, c.LocalStorage, verbose)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Repository: %w", err)
-	}
-
-	return localRepository, nil
 }
 
 // GetConfigDir は設定ディレクトリのパスを返す（XDG Base Directory仕様に準拠）
