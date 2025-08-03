@@ -3,6 +3,7 @@
 [![CI](https://github.com/kyokomi/gotodoist/actions/workflows/ci.yml/badge.svg)](https://github.com/kyokomi/gotodoist/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kyokomi/gotodoist)](https://goreportcard.com/report/github.com/kyokomi/gotodoist)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Reference](https://pkg.go.dev/badge/github.com/kyokomi/gotodoist.svg)](https://pkg.go.dev/github.com/kyokomi/gotodoist)
 
 Goで構築された、Todoistタスクを管理するための強力なコマンドラインツールです。
 
