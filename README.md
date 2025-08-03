@@ -12,26 +12,19 @@ A powerful command-line interface tool for managing your Todoist tasks, built wi
 
 ## Features
 
-- 📝 **Task Management**: List, add, update, and delete tasks
+- 📝 **Task Management**: List, add, update, complete, and delete tasks
 - 📁 **Project Management**: Organize tasks with projects
-- ⚙️ **Configuration Management**: Easy setup and configuration
-- 🌍 **Multi-language Support**: English and Japanese
-- 🚀 **Fast & Lightweight**: Built with Go for optimal performance
-- 🔒 **Secure**: Local configuration with API token protection
+- 🏷️ **Label Support**: Categorize tasks with labels
+- 📅 **Due Date Management**: Set and manage task deadlines
+- 🔄 **Offline Support**: Work offline with local sync
+- 🌍 **Multi-language**: English and Japanese support
+- 🚀 **Fast & Lightweight**: Optimized for speed and efficiency
 
 ## Installation
 
 ### Download Binary
 
-Download the latest release from the [releases page](https://github.com/kyokomi/gotodoist/releases).
-
-### Build from Source
-
-```bash
-git clone https://github.com/kyokomi/gotodoist.git
-cd gotodoist
-make build
-```
+Download the latest binary for your platform from the [releases page](https://github.com/kyokomi/gotodoist/releases).
 
 ### Using Go Install
 
@@ -43,196 +36,177 @@ go install github.com/kyokomi/gotodoist@latest
 
 ### 1. Get Your API Token
 
-1. Go to [Todoist Integrations](https://todoist.com/prefs/integrations)
-2. Copy your API token
+1. Visit [Todoist Integrations](https://todoist.com/prefs/integrations)
+2. Copy your API token from the "API token" section
 
-### 2. Configuration
+### 2. Set Up Authentication
 
-#### Option A: Environment Variable
 ```bash
+# Option 1: Environment variable (recommended)
 export TODOIST_API_TOKEN="your-api-token-here"
-```
 
-#### Option B: Configuration File
-```bash
+# Option 2: Configuration file
 gotodoist config init
 ```
-
-This will create a configuration file at `~/.config/gotodoist/config.yaml`.
 
 ### 3. Start Using
 
 ```bash
+# Sync with Todoist (recommended for first use)
+gotodoist sync
+
 # List all tasks
 gotodoist task list
 
 # Add a new task
 gotodoist task add "Buy groceries"
 
-# List all projects
-gotodoist project list
-
-# Add a new project
-gotodoist project add "Work Projects"
+# Add task to a specific project
+gotodoist task add "Write report" -p "Work"
 ```
 
-## Usage
+## Core Commands
 
-### Task Commands
+### Task Management
 
 ```bash
-# List all tasks
-gotodoist task list
+# List tasks
+gotodoist task list                          # All active tasks
+gotodoist task list -p "Work"                # Tasks in "Work" project
+gotodoist task list -f "p1"                  # Priority 1 tasks
+gotodoist task list -f "@important"          # Tasks with "important" label
+gotodoist task list -a                       # All tasks (including completed)
 
-# Add a new task
+# Add tasks
 gotodoist task add "Task content"
+gotodoist task add "Important task" -P 1     # With priority (1-4)
+gotodoist task add "Meeting" -d "tomorrow"   # With due date
+gotodoist task add "Call client" -p "Work" -l "urgent,calls"  # With project and labels
 
-# Update a task
-gotodoist task update <task-id> --content "New content"
+# Update tasks
+gotodoist task update <task-id> -c "New content"
+gotodoist task update <task-id> -P 2         # Change priority
+gotodoist task update <task-id> -d "next monday"  # Change due date
 
-# Delete a task
-gotodoist task delete <task-id>
-
-# Complete a task
+# Complete/Uncomplete tasks
 gotodoist task complete <task-id>
+gotodoist task uncomplete <task-id>
+
+# Delete tasks
+gotodoist task delete <task-id>
+gotodoist task delete <task-id> -f           # Skip confirmation
 ```
 
-### Project Commands
+### Project Management
 
 ```bash
-# List all projects
+# List projects
 gotodoist project list
+gotodoist project list -v                    # Verbose (with IDs)
 
-# Add a new project
-gotodoist project add "Project name"
+# Add projects
+gotodoist project add "New Project"
 
-# Update a project
-gotodoist project update <project-id> --name "New name"
+# Update projects
+gotodoist project update <project-id> --name "Updated Name"
 
-# Delete a project
+# Delete projects
 gotodoist project delete <project-id>
+gotodoist project delete <project-id> -f     # Skip confirmation
 ```
 
-### Configuration Commands
+### Synchronization
 
 ```bash
-# Initialize configuration
+# Sync with Todoist
+gotodoist sync                               # Sync all data
+gotodoist sync init                          # Initial full sync
+gotodoist sync status                        # Check sync status
+gotodoist sync reset -f                      # Reset local data
+```
+
+### Configuration
+
+```bash
+# Initialize config
 gotodoist config init
 
-# Show current configuration
+# View current config
 gotodoist config show
 
-# Set language preference
-gotodoist config set language en  # or ja
+# Set preferences
+gotodoist config set language ja             # Set language to Japanese
+gotodoist config set language en             # Set language to English
 ```
 
-### Global Options
+## Configuration Options
 
-```bash
-# Enable verbose output
-gotodoist --verbose task list
-
-# Enable debug mode
-gotodoist --debug task list
-
-# Set language for single command
-gotodoist --lang ja task list
-```
-
-## Configuration
-
-### Configuration File Location
-
+Configuration file location:
 - **Linux/macOS**: `~/.config/gotodoist/config.yaml`
 - **Windows**: `%APPDATA%\gotodoist\config.yaml`
-
-### Configuration Options
-
-```yaml
-api_token: "your-todoist-api-token"
-base_url: "https://api.todoist.com/rest/v2"
-language: "en"  # en or ja
-```
 
 ### Environment Variables
 
 - `TODOIST_API_TOKEN`: Your Todoist API token
 - `GOTODOIST_LANG`: Language preference (en/ja)
 
-## Development
+## Tips and Examples
 
-### Prerequisites
-
-- Go 1.24 or later
-- Make (optional, for using Makefile commands)
-
-### Building
-
+### Filter Tasks by Priority
 ```bash
-# Build the application
-make build
+# High priority tasks
+gotodoist task list -f "p1"
 
-# Run tests
-make test
-
-# Run tests with coverage
-make coverage
-
-# Format code
-make fmt
-
-# Run linter
-make lint
-
-# Check for vulnerabilities
-make vuln
+# Medium and low priority
+gotodoist task list -f "p3 | p4"
 ```
 
-### Available Make Commands
-
-Run `make help` to see all available commands:
-
+### Work with Labels
 ```bash
-make help
+# Add task with multiple labels
+gotodoist task add "Review PR" -l "code-review,urgent"
+
+# Filter by label
+gotodoist task list -f "@code-review"
 ```
 
-### Project Structure
+### Due Date Examples
+```bash
+# Natural language dates
+gotodoist task add "Submit report" -d "next friday"
+gotodoist task add "Team meeting" -d "every monday"
 
+# Specific dates
+gotodoist task add "Birthday party" -d "2024-12-25"
 ```
-gotodoist/
-├── cmd/           # CLI command definitions
-├── internal/      # Internal packages
-│   ├── api/       # Todoist API client
-│   ├── config/    # Configuration management
-│   └── i18n/      # Internationalization
-├── locales/       # Translation files
-├── .github/       # GitHub Actions workflows
-├── Makefile       # Build automation
-├── go.mod         # Go module definition
-└── main.go        # Application entry point
+
+### Combining Filters
+```bash
+# High priority tasks in Work project
+gotodoist task list -p "Work" -f "p1"
+
+# Tasks due today with urgent label
+gotodoist task list -f "today & @urgent"
 ```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"API token not found" error**
+   - Ensure `TODOIST_API_TOKEN` is set or run `gotodoist config init`
+
+2. **"Project not found" error**
+   - Use `gotodoist project list` to see available projects
+   - Project names are case-sensitive
+
+3. **Sync issues**
+   - Run `gotodoist sync` to refresh local data
+   - Use `gotodoist sync reset -f` if data seems corrupted
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request.
-
-### Development Process
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/#issue-number-description`
-3. Make your changes
-4. Run tests: `make test`
-5. Run linter: `make lint`
-6. Commit your changes with a descriptive message
-7. Push to your fork and submit a Pull Request
-
-### Commit Message Format
-
-```
-<type>: <description> (#<issue-number>)
-
-Types: feat, fix, docs, refactor, test, chore
-```
+Contributions are welcome! Please check the [issues page](https://github.com/kyokomi/gotodoist/issues) for areas where you can help.
 
 ## License
 
@@ -241,7 +215,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Links
 
 - [Todoist API Documentation](https://developer.todoist.com/rest/v2/)
-- [Issue Tracker](https://github.com/kyokomi/gotodoist/issues)
+- [Report Issues](https://github.com/kyokomi/gotodoist/issues)
 - [Releases](https://github.com/kyokomi/gotodoist/releases)
 
 ## Author
