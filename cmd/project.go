@@ -140,27 +140,31 @@ func getProjectListParams(cmd *cobra.Command) *projectListParams {
 func runProjectList(cmd *cobra.Command, _ []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupProjectExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getProjectListParams(cmd)
+	return executor.executeProjectList(ctx, params)
+}
 
-	// 3. データ取得
-	data, err := executor.fetchProjectListData(ctx, params)
+// executeProjectList はプロジェクト一覧表示の実行処理（テスト可能）
+func (e *projectExecutor) executeProjectList(ctx context.Context, params *projectListParams) error {
+	// 1. データ取得
+	data, err := e.fetchProjectListData(ctx, params)
 	if err != nil {
 		return err
 	}
 
-	// 4. フィルタリング
+	// 2. フィルタリング
 	filteredProjects := applyProjectFilters(data.projects, params)
 
-	// 5. 出力
-	executor.displayProjectResults(filteredProjects, params)
+	// 3. 出力
+	e.displayProjectResults(filteredProjects, params)
 
 	return nil
 }
