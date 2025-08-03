@@ -20,13 +20,6 @@ Goで構築された、Todoistタスクを管理するための強力なコマ�
 
 ## インストール
 
-### Homebrewを使用 (macOS/Linux)
-
-```bash
-brew tap kyokomi/tap
-brew install gotodoist
-```
-
 ### バイナリダウンロード
 
 [リリースページ](https://github.com/kyokomi/gotodoist/releases)から、お使いのプラットフォーム用の最新バイナリをダウンロードしてください。

@@ -20,13 +20,6 @@ A powerful command-line interface tool for managing your Todoist tasks, built wi
 
 ## Installation
 
-### Using Homebrew (macOS/Linux)
-
-```bash
-brew tap kyokomi/tap
-brew install gotodoist
-```
-
 ### Download Binary
 
 Download the latest binary for your platform from the [releases page](https://github.com/kyokomi/gotodoist/releases).
