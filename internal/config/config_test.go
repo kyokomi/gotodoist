@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	expectedBaseURL  = "https://api.todoist.com/api/v1"
-	expectedLanguage = "en"
+	expectedBaseURL = "https://api.todoist.com/api/v1"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -20,7 +19,6 @@ func TestDefaultConfig(t *testing.T) {
 	require.NotNil(t, config, "DefaultConfig()がnilを返しました")
 	assert.Equal(t, expectedBaseURL, config.BaseURL, "BaseURLが期待値と異なります")
 	assert.Empty(t, config.APIToken, "APITokenが空ではありません")
-	assert.Equal(t, expectedLanguage, config.Language, "Languageが期待値と異なります")
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -90,7 +88,6 @@ func TestLoadConfig(t *testing.T) {
 
 			assert.Equal(t, tt.wantToken, config.APIToken, "APITokenが期待値と異なります")
 			assert.Equal(t, expectedBaseURL, config.BaseURL, "BaseURLが期待値と異なります")
-			assert.Equal(t, expectedLanguage, config.Language, "Languageが期待値と異なります")
 
 			// 設定ファイルが自動生成されているかチェック
 			configDir := filepath.Join(tempDir, "gotodoist")
@@ -189,7 +186,6 @@ func TestGenerateConfigFile(t *testing.T) {
 	// 基本的な設定項目が含まれているかチェック
 	expectedContents := []string{
 		"base_url: \"https://api.todoist.com/api/v1\"",
-		"language: \"en\"",
 		"# api_token:",
 	}
 
@@ -235,7 +231,6 @@ func TestLoadConfigFromFile(t *testing.T) {
 	configContent := `# gotodoist CLI設定ファイル
 api_token: "test-file-token"
 base_url: "https://api.todoist.com/api/v1"
-language: "ja"
 `
 	err = os.WriteFile(configPath, []byte(configContent), 0600)
 	require.NoError(t, err, "設定ファイルの書き込みに失敗しました")
@@ -246,6 +241,5 @@ language: "ja"
 
 	// 設定ファイルからの値が正しく読み込まれているかチェック
 	assert.Equal(t, "test-file-token", config.APIToken, "APITokenが期待値と異なります")
-	assert.Equal(t, "ja", config.Language, "Languageが期待値と異なります")
 	assert.Equal(t, "https://api.todoist.com/api/v1", config.BaseURL, "BaseURLが期待値と異なります")
 }

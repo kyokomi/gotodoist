@@ -32,12 +32,6 @@ func TestRootCommandFlags(t *testing.T) {
 	if debugFlag != nil {
 		assert.Equal(t, "enable debug mode", debugFlag.Usage, "debugフラグのUsageが期待値と異なります")
 	}
-
-	langFlag := rootCmd.PersistentFlags().Lookup("lang")
-	assert.NotNil(t, langFlag, "langフラグが定義されていません")
-	if langFlag != nil {
-		assert.Equal(t, "language preference (en/ja)", langFlag.Usage, "langフラグのUsageが期待値と異なります")
-	}
 }
 
 func TestRootCommandSubcommands(t *testing.T) {

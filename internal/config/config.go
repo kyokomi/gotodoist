@@ -12,8 +12,6 @@ import (
 )
 
 const (
-	// DefaultLanguage はデフォルト言語設定
-	DefaultLanguage = "en"
 	// ConfigDirPerm は設定ディレクトリのパーミッション
 	ConfigDirPerm = 0750
 	// ConfigFilePerm は設定ファイルのパーミッション
@@ -24,7 +22,6 @@ const (
 type Config struct {
 	APIToken     string             `yaml:"api_token" mapstructure:"api_token"`
 	BaseURL      string             `yaml:"base_url,omitempty" mapstructure:"base_url"`
-	Language     string             `yaml:"language,omitempty" mapstructure:"language"`
 	LocalStorage *repository.Config `yaml:"local_storage,omitempty" mapstructure:"local_storage"`
 }
 
@@ -32,7 +29,6 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		BaseURL:      "https://api.todoist.com/api/v1",
-		Language:     DefaultLanguage,
 		LocalStorage: repository.DefaultConfig(),
 	}
 }
@@ -46,7 +42,6 @@ func LoadConfig() (*Config, error) {
 	defaultConfig := DefaultConfig()
 	v.SetDefault("api_token", defaultConfig.APIToken)
 	v.SetDefault("base_url", defaultConfig.BaseURL)
-	v.SetDefault("language", defaultConfig.Language)
 
 	// ローカルストレージのデフォルト値
 	v.SetDefault("local_storage.enabled", defaultConfig.LocalStorage.Enabled)
@@ -127,9 +122,6 @@ func generateConfigFile(configPath string, defaultConfig *Config) error {
 
 # Todoist API ベースURL（通常は変更不要）
 base_url: "` + defaultConfig.BaseURL + `"
-
-# 言語設定（en/ja）
-language: "` + defaultConfig.Language + `"
 
 # ローカルストレージ設定（高速化機能）
 local_storage:
