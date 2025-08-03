@@ -14,7 +14,7 @@ import (
 
 // Repository はローカルファーストのTodoistリポジトリ
 type Repository struct {
-	apiClient   *api.Client
+	apiClient   api.Interface
 	storage     *storage.SQLiteDB
 	syncManager *sync.Manager
 	config      *Config
@@ -22,7 +22,7 @@ type Repository struct {
 }
 
 // NewRepository は新しいローカルファーストリポジトリを作成する
-func NewRepository(apiClient *api.Client, config *Config, verbose bool) (*Repository, error) {
+func NewRepository(apiClient api.Interface, config *Config, verbose bool) (*Repository, error) {
 	if !config.Enabled {
 		// ローカルストレージが無効の場合は、APIを直接呼び出すRepository
 		return &Repository{

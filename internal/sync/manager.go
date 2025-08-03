@@ -12,13 +12,13 @@ import (
 
 // Manager は同期処理を管理する
 type Manager struct {
-	apiClient *api.Client
+	apiClient api.Interface
 	storage   *storage.SQLiteDB
 	verbose   bool
 }
 
 // NewManager は新しいSyncManagerを作成する
-func NewManager(apiClient *api.Client, storage *storage.SQLiteDB, verbose bool) *Manager {
+func NewManager(apiClient api.Interface, storage *storage.SQLiteDB, verbose bool) *Manager {
 	return &Manager{
 		apiClient: apiClient,
 		storage:   storage,
