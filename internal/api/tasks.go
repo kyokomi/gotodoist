@@ -288,3 +288,48 @@ func (c *Client) GetTasksByPriority(ctx context.Context, priority Priority) ([]I
 
 	return priorityTasks, nil
 }
+
+// GetItems はアイテム（タスク）のみを取得する
+func (c *Client) GetItems(ctx context.Context, syncToken string) (*SyncResponse, error) {
+	req := &SyncRequest{
+		SyncToken:     syncToken,
+		ResourceTypes: []string{ResourceItems},
+	}
+	return c.Sync(ctx, req)
+}
+
+// CompleteItem はタスクを完了にする
+func (c *Client) CompleteItem(ctx context.Context, itemID string) (*SyncResponse, error) {
+	cmd := Command{
+		Type: CommandItemComplete,
+		UUID: uuid.New().String(),
+		Args: map[string]interface{}{
+			"id": itemID,
+		},
+	}
+
+	req := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
+	}
+
+	return c.Sync(ctx, req)
+}
+
+// DeleteItem はタスクを削除する
+func (c *Client) DeleteItem(ctx context.Context, itemID string) (*SyncResponse, error) {
+	cmd := Command{
+		Type: CommandItemDelete,
+		UUID: uuid.New().String(),
+		Args: map[string]interface{}{
+			"id": itemID,
+		},
+	}
+
+	req := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
+	}
+
+	return c.Sync(ctx, req)
+}

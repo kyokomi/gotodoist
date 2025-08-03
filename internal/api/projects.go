@@ -94,6 +94,15 @@ func (c *Client) UpdateProject(ctx context.Context, projectID string, req *Updat
 	return c.Sync(ctx, request)
 }
 
+// GetProjects はプロジェクトのみを取得する
+func (c *Client) GetProjects(ctx context.Context, syncToken string) (*SyncResponse, error) {
+	req := &SyncRequest{
+		SyncToken:     syncToken,
+		ResourceTypes: []string{ResourceProjects},
+	}
+	return c.Sync(ctx, req)
+}
+
 // GetAllProjects は全てのプロジェクトを取得する
 func (c *Client) GetAllProjects(ctx context.Context) ([]Project, error) {
 	resp, err := c.GetProjects(ctx, "*")
@@ -110,6 +119,24 @@ func (c *Client) GetAllProjects(ctx context.Context) ([]Project, error) {
 	}
 
 	return activeProjects, nil
+}
+
+// DeleteProjectSync はプロジェクトを削除する（低レベルAPI）
+func (c *Client) DeleteProjectSync(ctx context.Context, projectID string) (*SyncResponse, error) {
+	cmd := Command{
+		Type: CommandProjectDelete,
+		UUID: uuid.New().String(),
+		Args: map[string]interface{}{
+			"id": projectID,
+		},
+	}
+
+	req := &SyncRequest{
+		SyncToken: "*",
+		Commands:  []Command{cmd},
+	}
+
+	return c.Sync(ctx, req)
 }
 
 // DeleteProject はプロジェクトを削除する
