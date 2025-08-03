@@ -84,33 +84,6 @@ func TestTodoistTime_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestTodoistTime_MarshalJSON(t *testing.T) {
-	tests := []struct {
-		name     string
-		time     TodoistTime
-		expected string
-	}{
-		{
-			name:     "zero time",
-			time:     TodoistTime{},
-			expected: `""`,
-		},
-		{
-			name:     "valid time",
-			time:     TodoistTime{time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)},
-			expected: `"2024-01-15T10:30:00Z"`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := json.Marshal(tt.time)
-			require.NoError(t, err, "JSONマーシャリングで予期しないエラーが発生しました")
-			assert.Equal(t, tt.expected, string(result), "マーシャリング結果が期待値と異なります")
-		})
-	}
-}
-
 func TestItem_JSONUnmarshaling(t *testing.T) {
 	jsonData := `{
 		"id": "item-123",

@@ -146,16 +146,22 @@ const (
 	CommandProjectArchive   = "project_archive"
 	CommandProjectUnarchive = "project_unarchive"
 
+	// NOTE: 以下のセクション関連コマンドは現在のCLIでは未実装ですが、
+	// 将来的にセクション管理機能を追加する際に使用するため残しています。
 	CommandSectionAdd     = "section_add"
 	CommandSectionUpdate  = "section_update"
 	CommandSectionDelete  = "section_delete"
 	CommandSectionMove    = "section_move"
 	CommandSectionArchive = "section_archive"
 
+	// NOTE: 以下のラベル関連コマンドは現在のCLIでは未実装ですが、
+	// 将来的にラベル管理機能を追加する際に使用するため残しています。
 	CommandLabelAdd    = "label_add"
 	CommandLabelUpdate = "label_update"
 	CommandLabelDelete = "label_delete"
 
+	// NOTE: 以下のノート関連コマンドは現在のCLIでは未実装ですが、
+	// 将来的にノート機能を追加する際に使用するため残しています。
 	CommandNoteAdd    = "note_add"
 	CommandNoteUpdate = "note_update"
 	CommandNoteDelete = "note_delete"
@@ -200,12 +206,4 @@ func (t *TodoistTime) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil // パースに失敗してもエラーにしない
-}
-
-// MarshalJSON は日時をJSONに変換する
-func (t TodoistTime) MarshalJSON() ([]byte, error) {
-	if t.IsZero() {
-		return json.Marshal("")
-	}
-	return json.Marshal(t.Format(time.RFC3339))
 }

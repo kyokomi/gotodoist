@@ -162,6 +162,8 @@ func (c *Client) UnarchiveProject(ctx context.Context, projectID string) (*SyncR
 }
 
 // GetFavoriteProjects はお気に入りプロジェクトを取得する
+// NOTE: 現在のCLIでは未使用ですが、将来的にお気に入りプロジェクトの
+// フィルタリング機能を実装する際に使用するため残しています。
 func (c *Client) GetFavoriteProjects(ctx context.Context) ([]Project, error) {
 	projects, err := c.GetAllProjects(ctx)
 	if err != nil {
@@ -179,6 +181,8 @@ func (c *Client) GetFavoriteProjects(ctx context.Context) ([]Project, error) {
 }
 
 // GetSharedProjects は共有プロジェクトを取得する
+// NOTE: 現在のCLIでは未使用ですが、将来的に共有プロジェクトの
+// 管理機能を実装する際に使用するため残しています。
 func (c *Client) GetSharedProjects(ctx context.Context) ([]Project, error) {
 	projects, err := c.GetAllProjects(ctx)
 	if err != nil {
@@ -195,6 +199,8 @@ func (c *Client) GetSharedProjects(ctx context.Context) ([]Project, error) {
 	return shared, nil
 }
 
+// NOTE: 以下の色定数は現在のCLIでは未使用ですが、将来的にプロジェクトの色設定機能を実装する際に
+// 使用するため残しています。Todoist APIで利用可能な全ての色を定義しています。
 // Project colors (Todoist API で利用可能な色)
 const (
 	ColorBerryRed   = "berry_red"
