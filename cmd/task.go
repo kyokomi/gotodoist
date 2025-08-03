@@ -141,27 +141,31 @@ func getTaskListParams(cmd *cobra.Command) *taskListParams {
 func runTaskList(cmd *cobra.Command, _ []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
-	setup, err := setupTaskExecution(ctx)
+	// セットアップ
+	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
-	defer setup.cleanup()
+	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getTaskListParams(cmd)
+	return executor.executeTaskListWithOutput(ctx, params)
+}
 
-	// 3. データ取得
-	data, err := setup.fetchAllTaskListData(ctx, params)
+// executeTaskListWithOutput はタスク一覧表示と結果表示を実行する（テスト可能）
+func (e *taskExecutor) executeTaskListWithOutput(ctx context.Context, params *taskListParams) error {
+	// 1. データ取得
+	data, err := e.fetchAllTaskListData(ctx, params)
 	if err != nil {
 		return err
 	}
 
-	// 4. フィルタリング
+	// 2. フィルタリング
 	filteredTasks := applyTaskFilters(data.tasks, params)
 
-	// 5. 出力
-	setup.displayTaskResults(data.projectsMap, data.sectionsMap, filteredTasks)
+	// 3. 出力
+	e.displayTaskResults(data.projectsMap, data.sectionsMap, filteredTasks)
 
 	return nil
 }
@@ -198,24 +202,28 @@ func getTaskAddParams(cmd *cobra.Command, args []string) *taskAddParams {
 func runTaskAdd(cmd *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getTaskAddParams(cmd, args)
+	return executor.executeTaskAddWithOutput(ctx, params)
+}
 
-	// 3. タスク追加実行
-	resp, err := executor.executeTaskAdd(ctx, params)
+// executeTaskAddWithOutput はタスク追加と結果表示を実行する（テスト可能）
+func (e *taskExecutor) executeTaskAddWithOutput(ctx context.Context, params *taskAddParams) error {
+	// 1. タスク追加実行
+	resp, err := e.executeTaskAdd(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displaySuccessMessage("Task created successfully!", resp.SyncToken)
+	// 2. 結果表示
+	e.displaySuccessMessage("Task created successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -236,24 +244,28 @@ func getTaskCompleteParams(args []string) *taskCompleteParams {
 func runTaskComplete(_ *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getTaskCompleteParams(args)
+	return executor.executeTaskCompleteWithOutput(ctx, params)
+}
 
-	// 3. タスク完了実行
-	resp, err := executor.executeTaskComplete(ctx, params)
+// executeTaskCompleteWithOutput はタスク完了と結果表示を実行する（テスト可能）
+func (e *taskExecutor) executeTaskCompleteWithOutput(ctx context.Context, params *taskCompleteParams) error {
+	// 1. タスク完了実行
+	resp, err := e.executeTaskComplete(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to complete task: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displaySuccessMessage("Task completed successfully!", resp.SyncToken)
+	// 2. 結果表示
+	e.displaySuccessMessage("Task completed successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -262,24 +274,28 @@ func runTaskComplete(_ *cobra.Command, args []string) error {
 func runTaskUncomplete(_ *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getTaskCompleteParams(args) // 同じパラメータ構造を使用
+	return executor.executeTaskUncompleteWithOutput(ctx, params)
+}
 
-	// 3. タスク未完了実行
-	resp, err := executor.executeTaskUncomplete(ctx, params)
+// executeTaskUncompleteWithOutput はタスク未完了と結果表示を実行する（テスト可能）
+func (e *taskExecutor) executeTaskUncompleteWithOutput(ctx context.Context, params *taskCompleteParams) error {
+	// 1. タスク未完了実行
+	resp, err := e.executeTaskUncomplete(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to uncomplete task: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displaySuccessMessage("Task marked as uncompleted successfully!", resp.SyncToken)
+	// 2. 結果表示
+	e.displaySuccessMessage("Task marked as uncompleted successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -303,18 +319,22 @@ func getTaskDeleteParams(cmd *cobra.Command, args []string) *taskDeleteParams {
 func runTaskDelete(cmd *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getTaskDeleteParams(cmd, args)
+	return executor.executeTaskDeleteWithOutput(ctx, params)
+}
 
-	// 3. 削除対象の確認
-	task, shouldDelete, err := executor.confirmTaskDeletion(ctx, params)
+// executeTaskDeleteWithOutput はタスク削除と結果表示を実行する（テスト可能）
+func (e *taskExecutor) executeTaskDeleteWithOutput(ctx context.Context, params *taskDeleteParams) error {
+	// 1. 削除対象の確認
+	task, shouldDelete, err := e.confirmTaskDeletion(ctx, params)
 	if err != nil {
 		return err
 	}
@@ -322,14 +342,14 @@ func runTaskDelete(cmd *cobra.Command, args []string) error {
 		return nil // ユーザーがキャンセルまたはタスクが見つからない
 	}
 
-	// 4. タスク削除実行
-	resp, err := executor.deleteTask(ctx, task.ID)
+	// 2. タスク削除実行
+	resp, err := e.deleteTask(ctx, task.ID)
 	if err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
 	}
 
-	// 5. 結果表示
-	executor.displayTaskDeleteResult(task, resp)
+	// 3. 結果表示
+	e.displayTaskDeleteResult(task, resp)
 
 	return nil
 }
@@ -366,24 +386,28 @@ func getTaskUpdateParams(cmd *cobra.Command, args []string) *taskUpdateParams {
 func runTaskUpdate(cmd *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupTaskExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getTaskUpdateParams(cmd, args)
+	return executor.executeTaskUpdateWithOutput(ctx, params)
+}
 
-	// 3. タスク更新実行
-	resp, err := executor.executeTaskUpdate(ctx, params)
+// executeTaskUpdateWithOutput はタスク更新と結果表示を実行する（テスト可能）
+func (e *taskExecutor) executeTaskUpdateWithOutput(ctx context.Context, params *taskUpdateParams) error {
+	// 1. タスク更新実行
+	resp, err := e.executeTaskUpdate(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displaySuccessMessage("Task updated successfully!", resp.SyncToken)
+	// 2. 結果表示
+	e.displaySuccessMessage("Task updated successfully!", resp.SyncToken)
 
 	return nil
 }

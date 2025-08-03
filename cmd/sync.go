@@ -76,88 +76,164 @@ After reset, you may want to run 'gotodoist sync init' to repopulate the local s
 	RunE: runSyncReset,
 }
 
+// syncParams は通常の同期のパラメータ
+type syncParams struct {
+	// 現在はパラメータなし
+}
+
+// getSyncParams は同期のパラメータを取得する
+func getSyncParams() *syncParams {
+	return &syncParams{}
+}
+
 // runSync は増分同期の実際の処理
 func runSync(_ *cobra.Command, _ []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupSyncExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. ローカルストレージの確認
-	if !executor.isLocalStorageEnabled() {
-		return fmt.Errorf("local storage is disabled. Enable it in config to use sync command")
-	}
+	// パラメータ取得と実行
+	params := getSyncParams()
+	return executor.executeSyncWithOutput(ctx, params)
+}
 
-	// 3. 増分同期を実行
-	status, err := executor.executeIncrementalSync(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to sync: %w", err)
-	}
+// syncInitParams は初期同期のパラメータ
+type syncInitParams struct {
+	// 現在はパラメータなし
+}
 
-	// 4. 結果表示
-	executor.displaySyncResult(status)
-
-	return nil
+// getSyncInitParams は初期同期のパラメータを取得する
+func getSyncInitParams() *syncInitParams {
+	return &syncInitParams{}
 }
 
 // runSyncInit は初期同期の実際の処理
 func runSyncInit(_ *cobra.Command, _ []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupSyncExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. ローカルストレージの確認
-	if !executor.isLocalStorageEnabled() {
-		return fmt.Errorf("local storage is disabled. Enable it in config to use sync command")
-	}
+	// パラメータ取得と実行
+	params := getSyncInitParams()
+	return executor.executeSyncInitWithOutput(ctx, params)
+}
 
-	// 3. 初期同期を実行
-	executor.output.Syncf("Starting initial synchronization...")
-	status, err := executor.executeInitialSync(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to run initial sync: %w", err)
-	}
+// syncStatusParams は同期状態表示のパラメータ
+type syncStatusParams struct {
+	// 現在はパラメータなし
+}
 
-	// 4. 結果表示
-	executor.displayInitialSyncResult(status)
-
-	return nil
+// getSyncStatusParams は同期状態表示のパラメータを取得する
+func getSyncStatusParams() *syncStatusParams {
+	return &syncStatusParams{}
 }
 
 // runSyncStatus は同期状態表示の実際の処理
 func runSyncStatus(_ *cobra.Command, _ []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupSyncExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. ローカルストレージの確認
-	if !executor.isLocalStorageEnabled() {
-		executor.displayLocalStorageDisabled()
+	// パラメータ取得と実行
+	params := getSyncStatusParams()
+	return executor.executeSyncStatusWithOutput(ctx, params)
+}
+
+// executeSyncWithOutput は増分同期と結果表示を実行する（テスト可能）
+func (e *syncExecutor) executeSyncWithOutput(ctx context.Context, _ *syncParams) error {
+	// 1. ローカルストレージの確認
+	if !e.isLocalStorageEnabled() {
+		return fmt.Errorf("local storage is disabled. Enable it in config to use sync command")
+	}
+
+	// 2. 増分同期を実行
+	status, err := e.executeIncrementalSync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync: %w", err)
+	}
+
+	// 3. 結果表示
+	e.displaySyncResult(status)
+
+	return nil
+}
+
+// executeSyncInitWithOutput は初期同期と結果表示を実行する（テスト可能）
+func (e *syncExecutor) executeSyncInitWithOutput(ctx context.Context, _ *syncInitParams) error {
+	// 1. ローカルストレージの確認
+	if !e.isLocalStorageEnabled() {
+		return fmt.Errorf("local storage is disabled. Enable it in config to use sync command")
+	}
+
+	// 2. 初期同期を実行
+	e.output.Syncf("Starting initial synchronization...")
+	status, err := e.executeInitialSync(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to run initial sync: %w", err)
+	}
+
+	// 3. 結果表示
+	e.displayInitialSyncResult(status)
+
+	return nil
+}
+
+// executeSyncStatusWithOutput は同期状態表示を実行する（テスト可能）
+func (e *syncExecutor) executeSyncStatusWithOutput(_ context.Context, _ *syncStatusParams) error {
+	// 1. ローカルストレージの確認
+	if !e.isLocalStorageEnabled() {
+		e.displayLocalStorageDisabled()
 		return nil
 	}
 
-	// 3. 同期状態を取得
-	status, err := executor.getSyncStatus()
+	// 2. 同期状態を取得
+	status, err := e.getSyncStatus()
 	if err != nil {
 		return fmt.Errorf("failed to get sync status: %w", err)
 	}
 
+	// 3. 結果表示
+	e.displaySyncStatus(status)
+
+	return nil
+}
+
+// executeSyncResetWithOutput はローカルデータリセットと結果表示を実行する（テスト可能）
+func (e *syncExecutor) executeSyncResetWithOutput(ctx context.Context, params *syncResetParams) error {
+	// 1. ローカルストレージの確認
+	if !e.isLocalStorageEnabled() {
+		return fmt.Errorf("local storage is disabled. Enable it in config to use reset command")
+	}
+
+	// 2. 確認プロンプト（forceフラグが無い場合）
+	if !params.force {
+		if !e.promptResetConfirmation() {
+			return nil // ユーザーがキャンセル
+		}
+	}
+
+	// 3. リセット実行
+	if err := e.executeReset(ctx); err != nil {
+		return fmt.Errorf("failed to reset local storage: %w", err)
+	}
+
 	// 4. 結果表示
-	executor.displaySyncStatus(status)
+	e.displayResetResult()
 
 	return nil
 }
@@ -273,39 +349,33 @@ func (e *syncExecutor) getSyncStatus() (*sync.Status, error) {
 	return e.repository.GetSyncStatus()
 }
 
+// syncResetParams はリセットのパラメータ
+type syncResetParams struct {
+	force bool
+}
+
+// getSyncResetParams はリセットのパラメータを取得する
+func getSyncResetParams(cmd *cobra.Command) *syncResetParams {
+	force, _ := cmd.Flags().GetBool("force")
+	return &syncResetParams{
+		force: force,
+	}
+}
+
 // runSyncReset はローカルデータリセットの実際の処理
 func runSyncReset(cmd *cobra.Command, _ []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupSyncExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. ローカルストレージの確認
-	if !executor.isLocalStorageEnabled() {
-		return fmt.Errorf("local storage is disabled. Enable it in config to use reset command")
-	}
-
-	// 3. 確認プロンプト（forceフラグが無い場合）
-	force, _ := cmd.Flags().GetBool("force")
-	if !force {
-		if !executor.promptResetConfirmation() {
-			return nil // ユーザーがキャンセル
-		}
-	}
-
-	// 4. リセット実行
-	if err := executor.executeReset(ctx); err != nil {
-		return fmt.Errorf("failed to reset local storage: %w", err)
-	}
-
-	// 5. 結果表示
-	executor.displayResetResult()
-
-	return nil
+	// パラメータ取得と実行
+	params := getSyncResetParams(cmd)
+	return executor.executeSyncResetWithOutput(ctx, params)
 }
 
 // promptResetConfirmation はリセットの確認プロンプトを表示する
