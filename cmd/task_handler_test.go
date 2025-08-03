@@ -342,3 +342,48 @@ func TestExecuteTaskListWithOutput_Success(t *testing.T) {
 	assert.Contains(t, outputStr, "Task 1", "タスク1が出力に含まれていません")
 	assert.Contains(t, outputStr, "Task 2", "タスク2が出力に含まれていません")
 }
+
+func TestExecuteTaskUpdateWithOutput_Success(t *testing.T) {
+	// 先にプロジェクトを作成
+	testProject := api.Project{
+		ID:   "test-project-5",
+		Name: "Test Project 5",
+	}
+	existingTask := api.Item{
+		ID:        "task-update",
+		Content:   "Task to Update",
+		ProjectID: "test-project-5",
+	}
+	params := &taskUpdateParams{
+		taskID:      "task-update",
+		content:     "Updated Task Content",
+		priority:    "3",
+		dueDate:     "today",
+		description: "Updated description",
+		labels:      "updated,test",
+	}
+
+	// Arrange: テスト環境を準備
+	setup := setupTestTaskExecutor(t)
+	defer setup.cleanup()
+
+	// プロジェクトとタスクをDBに挿入
+	insertTestProjectsIntoDB(t, setup.dbPath, []api.Project{testProject})
+	insertTestTasksIntoDB(t, setup.dbPath, []api.Item{existingTask})
+
+	// UpdateTaskのmockを設定
+	setup.mockClient.UpdateTaskFunc = func(_ context.Context, _ string, req *api.UpdateTaskRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "updated-token",
+		}, nil
+	}
+
+	// Act: テスト対象を実行
+	err := setup.executor.executeTaskUpdateWithOutput(context.Background(), params)
+
+	// Assert: 結果を検証
+	require.NoError(t, err)
+
+	outputStr := setup.stdout.String()
+	assert.Contains(t, outputStr, "Task updated successfully!", "期待される出力が含まれていません")
+}
