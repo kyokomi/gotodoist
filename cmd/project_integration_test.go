@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,13 +52,19 @@ func TestProjectAdd_WithParent(t *testing.T) {
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
 
-	// 親プロジェクト検索のモック
-	mockClient.GetAllProjectsFunc = func(_ context.Context) ([]api.Project, error) {
-		return []api.Project{
-			{
-				ID:   "parent-id-123",
-				Name: "Parent Project",
-			},
+	// 初期同期用（親プロジェクトをローカルに保存）
+	parentProjects := []api.Project{
+		{
+			ID:   "parent-id-123",
+			Name: "Parent Project",
+		},
+	}
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  parentProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
 		}, nil
 	}
 
@@ -74,6 +81,10 @@ func TestProjectAdd_WithParent(t *testing.T) {
 	// テスト用のexecutorを作成
 	executor, cleanup := createTestProjectExecutor(t, mockClient)
 	defer cleanup()
+
+	// 初期同期を実行して親プロジェクトをローカルに保存
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
 
 	// テスト実行
 	params := &projectAddParams{
@@ -124,15 +135,25 @@ func TestProjectList_AllProjects(t *testing.T) {
 		{ID: "3", Name: "Project 3", IsArchived: true, IsFavorite: false},
 	}
 
-	// モッククライアントをセットアップ
+	// モッククライアントをセットアップ（初期同期用）
 	mockClient := api.NewMockClient()
-	mockClient.GetAllProjectsFunc = func(_ context.Context) ([]api.Project, error) {
-		return mockProjects, nil
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		// 初期同期時にモックデータを返す
+		return &api.SyncResponse{
+			SyncToken: "test-token",
+			Projects:  mockProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
 	}
 
 	// テスト用のexecutorを作成
 	executor, cleanup := createTestProjectExecutor(t, mockClient)
 	defer cleanup()
+
+	// 初期同期を実行してモックデータをローカルに保存
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
 
 	// テスト実行
 	params := &projectListParams{
@@ -160,22 +181,25 @@ func TestProjectList_FavoritesOnly(t *testing.T) {
 		{ID: "3", Name: "Project 3", IsArchived: true, IsFavorite: false},
 	}
 
-	// モッククライアントをセットアップ
+	// モッククライアントをセットアップ（初期同期用）
 	mockClient := api.NewMockClient()
-	mockClient.GetAllProjectsFunc = func(_ context.Context) ([]api.Project, error) {
-		// お気に入りのみフィルタリング
-		var favorites []api.Project
-		for _, project := range mockProjects {
-			if project.IsFavorite {
-				favorites = append(favorites, project)
-			}
-		}
-		return favorites, nil
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		// 初期同期時にモックデータを返す
+		return &api.SyncResponse{
+			SyncToken: "test-token",
+			Projects:  mockProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
 	}
 
 	// テスト用のexecutorを作成
 	executor, cleanup := createTestProjectExecutor(t, mockClient)
 	defer cleanup()
+
+	// 初期同期を実行してモックデータをローカルに保存
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
 
 	// テスト実行
 	params := &projectListParams{
@@ -198,10 +222,15 @@ func TestProjectDelete_Success(t *testing.T) {
 		{ID: "test-id", Name: "Test Project"},
 	}
 
-	// モッククライアントをセットアップ
+	// モッククライアントをセットアップ（初期同期用）
 	mockClient := api.NewMockClient()
-	mockClient.GetAllProjectsFunc = func(_ context.Context) ([]api.Project, error) {
-		return mockProjects, nil
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  mockProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
 	}
 	mockClient.DeleteProjectFunc = func(_ context.Context, projectID string) (*api.SyncResponse, error) {
 		assert.Equal(t, "test-id", projectID)
@@ -211,6 +240,10 @@ func TestProjectDelete_Success(t *testing.T) {
 	// テスト用のexecutorを作成
 	executor, cleanup := createTestProjectExecutor(t, mockClient)
 	defer cleanup()
+
+	// 初期同期を実行してモックデータをローカルに保存
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
 
 	// 削除対象の確認（force=trueなので確認処理はスキップされる）
 	params := &projectDeleteParams{
@@ -235,33 +268,281 @@ func TestProjectDelete_NotFound(t *testing.T) {
 		{ID: "other-id", Name: "Other Project"},
 	}
 
-	// モッククライアントをセットアップ
+	// モッククライアントをセットアップ（初期同期用）
 	mockClient := api.NewMockClient()
-	mockClient.GetAllProjectsFunc = func(_ context.Context) ([]api.Project, error) {
-		return mockProjects, nil
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  mockProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
 	}
 
 	// テスト用のexecutorを作成
 	executor, cleanup := createTestProjectExecutor(t, mockClient)
 	defer cleanup()
 
+	// 初期同期を実行してモックデータをローカルに保存
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
+
 	// 削除対象の確認
 	params := &projectDeleteParams{
 		projectIDOrName: "Nonexistent Project",
 		force:           true,
 	}
-	_, _, err := executor.confirmProjectDeletion(context.Background(), params)
+	_, _, err = executor.confirmProjectDeletion(context.Background(), params)
 
 	// 結果検証（エラーが発生することを確認）
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find project")
 }
 
+// TestProjectUpdate_Success は正常なプロジェクト更新のテスト
+func TestProjectUpdate_Success(t *testing.T) {
+	// 既存プロジェクトのテストデータ
+	existingProjects := []api.Project{
+		{ID: "update-id", Name: "Old Project Name", Color: "red", IsFavorite: false},
+	}
+
+	// モッククライアントをセットアップ
+	mockClient := api.NewMockClient()
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  existingProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
+	}
+	mockClient.UpdateProjectFunc = func(_ context.Context, projectID string, req *api.UpdateProjectRequest) (*api.SyncResponse, error) {
+		assert.Equal(t, "update-id", projectID)
+		assert.Equal(t, "New Project Name", req.Name)
+		assert.Equal(t, "blue", req.Color)
+		assert.True(t, req.IsFavorite)
+
+		return &api.SyncResponse{
+			SyncToken: "update-token",
+		}, nil
+	}
+
+	// テスト用のexecutorを作成
+	executor, cleanup := createTestProjectExecutor(t, mockClient)
+	defer cleanup()
+
+	// 初期同期を実行して既存プロジェクトをローカルに保存
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
+
+	// テスト実行
+	params := &projectUpdateParams{
+		projectIDOrName: "Old Project Name",
+		newName:         "New Project Name",
+		color:           "blue",
+		isFavorite:      true,
+		favoriteChanged: true,
+	}
+	resp, err := executor.executeProjectUpdate(context.Background(), params)
+
+	// 結果検証
+	require.NoError(t, err)
+	assert.Equal(t, "update-token", resp.SyncToken)
+}
+
+// TestProjectArchive_Success は正常なプロジェクトアーカイブのテスト
+func TestProjectArchive_Success(t *testing.T) {
+	// 既存プロジェクトのテストデータ
+	existingProjects := []api.Project{
+		{ID: "archive-id", Name: "Archive Test Project", IsArchived: false},
+	}
+
+	// モッククライアントをセットアップ
+	mockClient := api.NewMockClient()
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  existingProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
+	}
+	mockClient.ArchiveProjectFunc = func(_ context.Context, projectID string) (*api.SyncResponse, error) {
+		assert.Equal(t, "archive-id", projectID)
+		return &api.SyncResponse{SyncToken: "archive-token"}, nil
+	}
+
+	// テスト用のexecutorを作成
+	executor, cleanup := createTestProjectExecutor(t, mockClient)
+	defer cleanup()
+
+	// 初期同期を実行
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
+
+	// テスト実行
+	params := &projectArchiveParams{
+		projectIDOrName: "Archive Test Project",
+	}
+	resp, err := executor.executeProjectArchive(context.Background(), params)
+
+	// 結果検証
+	require.NoError(t, err)
+	assert.Equal(t, "archive-token", resp.SyncToken)
+}
+
+// TestProjectUnarchive_Success は正常なプロジェクトアーカイブ解除のテスト
+func TestProjectUnarchive_Success(t *testing.T) {
+	// アーカイブ済みプロジェクトのテストデータ
+	archivedProjects := []api.Project{
+		{ID: "unarchive-id", Name: "Unarchive Test Project", IsArchived: true},
+	}
+
+	// モッククライアントをセットアップ
+	mockClient := api.NewMockClient()
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  archivedProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
+	}
+	mockClient.UnarchiveProjectFunc = func(_ context.Context, projectID string) (*api.SyncResponse, error) {
+		assert.Equal(t, "unarchive-id", projectID)
+		return &api.SyncResponse{SyncToken: "unarchive-token"}, nil
+	}
+
+	// テスト用のexecutorを作成
+	executor, cleanup := createTestProjectExecutor(t, mockClient)
+	defer cleanup()
+
+	// 初期同期を実行
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
+
+	// テスト実行
+	params := &projectArchiveParams{
+		projectIDOrName: "Unarchive Test Project",
+	}
+	resp, err := executor.executeProjectUnarchive(context.Background(), params)
+
+	// 結果検証
+	require.NoError(t, err)
+	assert.Equal(t, "unarchive-token", resp.SyncToken)
+}
+
+// TestFindProjectIDByName_Success はプロジェクト名からID検索のテスト
+func TestFindProjectIDByName_Success(t *testing.T) {
+	// テストデータ
+	testProjects := []api.Project{
+		{ID: "id-1", Name: "Project Alpha"},
+		{ID: "id-2", Name: "Project Beta"},
+		{ID: "id-3", Name: "Project Gamma"},
+	}
+
+	// モッククライアントをセットアップ
+	mockClient := api.NewMockClient()
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "initial-token",
+			Projects:  testProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
+	}
+
+	// テスト用のexecutorを作成
+	executor, cleanup := createTestProjectExecutor(t, mockClient)
+	defer cleanup()
+
+	// 初期同期を実行
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
+
+	// テストケース: 名前で検索
+	t.Run("名前で検索", func(t *testing.T) {
+		projectID, err := executor.findProjectIDByName(context.Background(), "Project Beta")
+		require.NoError(t, err)
+		assert.Equal(t, "id-2", projectID)
+	})
+
+	// テストケース: IDで検索（そのまま返される）
+	t.Run("IDで検索", func(t *testing.T) {
+		projectID, err := executor.findProjectIDByName(context.Background(), "id-3")
+		require.NoError(t, err)
+		assert.Equal(t, "id-3", projectID)
+	})
+
+	// テストケース: 存在しない名前
+	t.Run("存在しない名前", func(t *testing.T) {
+		_, err := executor.findProjectIDByName(context.Background(), "Nonexistent Project")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "project not found")
+	})
+}
+
+// TestProjectList_TreeView はツリー表示のテスト
+func TestProjectList_TreeView(t *testing.T) {
+	// 親子関係があるプロジェクトのテストデータ
+	mockProjects := []api.Project{
+		{ID: "parent-1", Name: "Parent Project 1", ParentID: ""},
+		{ID: "child-1", Name: "Child Project 1", ParentID: "parent-1"},
+		{ID: "child-2", Name: "Child Project 2", ParentID: "parent-1"},
+		{ID: "parent-2", Name: "Parent Project 2", ParentID: ""},
+	}
+
+	// モッククライアントをセットアップ
+	mockClient := api.NewMockClient()
+	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+		return &api.SyncResponse{
+			SyncToken: "test-token",
+			Projects:  mockProjects,
+			Items:     []api.Item{},
+			Sections:  []api.Section{},
+		}, nil
+	}
+
+	// テスト用のexecutorを作成
+	executor, cleanup := createTestProjectExecutor(t, mockClient)
+	defer cleanup()
+
+	// 初期同期を実行
+	err := executor.repository.ForceInitialSync(context.Background())
+	require.NoError(t, err)
+
+	// テスト実行（ツリー表示）
+	params := &projectListParams{
+		showTree:      true,
+		showArchived:  false,
+		showFavorites: false,
+	}
+	data, err := executor.fetchProjectListData(context.Background(), params)
+	require.NoError(t, err)
+
+	// 結果検証（プロジェクトが取得できることを確認）
+	assert.Len(t, data.projects, 4)
+
+	// 親プロジェクトが含まれることを確認
+	var projectNames []string
+	for _, project := range data.projects {
+		projectNames = append(projectNames, project.Name)
+	}
+	assert.Contains(t, projectNames, "Parent Project 1")
+	assert.Contains(t, projectNames, "Child Project 1")
+	assert.Contains(t, projectNames, "Child Project 2")
+	assert.Contains(t, projectNames, "Parent Project 2")
+}
+
 // createTestProjectExecutor はテスト用のprojectExecutorを作成するヘルパー関数
 func createTestProjectExecutor(t *testing.T, mockClient api.Interface) (*projectExecutor, func()) {
-	// テスト用設定（ローカルストレージ無効）
+	// テスト用の一時ディレクトリを作成
+	tempDir := t.TempDir()
+
+	// テスト用設定（ローカルストレージ有効、一時ディレクトリ使用）
 	repoConfig := &repository.Config{
-		Enabled: false, // ローカルストレージ無効でAPIのみ使用
+		Enabled:      true,
+		DatabasePath: filepath.Join(tempDir, "test.db"),
 	}
 
 	// テスト用Repositoryを作成
@@ -291,6 +572,7 @@ func createTestProjectExecutor(t *testing.T, mockClient api.Interface) (*project
 		if err := repo.Close(); err != nil {
 			t.Logf("failed to close repository: %v", err)
 		}
+		// t.TempDir()で作成されたディレクトリは自動的にクリーンアップされる
 	}
 
 	return executor, cleanup
