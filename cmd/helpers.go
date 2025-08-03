@@ -19,11 +19,6 @@ func IsDebug() bool {
 	return globalFlags.Debug
 }
 
-// GetLanguage は設定された言語を返す
-func GetLanguage() string {
-	return globalFlags.Lang
-}
-
 // IsShowBenchmark はベンチマーク表示モードかどうかを返す
 func IsShowBenchmark() bool {
 	return globalFlags.ShowBenchmark

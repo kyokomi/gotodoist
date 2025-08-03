@@ -17,7 +17,6 @@ A powerful command-line interface tool for managing your Todoist tasks, built wi
 - 🏷️ **Label Support**: Categorize tasks with labels
 - 📅 **Due Date Management**: Set and manage task deadlines
 - 🔄 **Offline Support**: Work offline with local sync
-- 🌍 **Multi-language**: English and Japanese support
 - 🚀 **Fast & Lightweight**: Optimized for speed and efficiency
 
 ## Installation
@@ -134,9 +133,6 @@ gotodoist config init
 # View current config
 gotodoist config show
 
-# Set preferences
-gotodoist config set language ja             # Set language to Japanese
-gotodoist config set language en             # Set language to English
 ```
 
 ## Configuration Options
@@ -148,7 +144,6 @@ Configuration file location:
 ### Environment Variables
 
 - `TODOIST_API_TOKEN`: Your Todoist API token
-- `GOTODOIST_LANG`: Language preference (en/ja)
 
 ## Tips and Examples
 

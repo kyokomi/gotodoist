@@ -29,7 +29,6 @@ var configCmd = &cobra.Command{
 This command helps you manage your gotodoist configuration including:
 - API token setup
 - Configuration file location
-- Language preferences
 - Current configuration values
 
 Configuration Priority (highest to lowest):
@@ -118,7 +117,6 @@ func showConfig(_ *cobra.Command, _ []string) error {
 	fmt.Println("Current Configuration:")
 	fmt.Printf("  API Token: %s\n", maskToken(cfg.APIToken))
 	fmt.Printf("  Base URL:  %s\n", cfg.BaseURL)
-	fmt.Printf("  Language:  %s\n", cfg.Language)
 
 	configDir, err := config.GetConfigDir()
 	if err == nil {
@@ -131,12 +129,6 @@ func showConfig(_ *cobra.Command, _ []string) error {
 		fmt.Printf("  TODOIST_API_TOKEN: %s\n", maskToken(token))
 	} else {
 		fmt.Println("  TODOIST_API_TOKEN: (not set)")
-	}
-
-	if lang := os.Getenv("GOTODOIST_LANG"); lang != "" {
-		fmt.Printf("  GOTODOIST_LANG: %s\n", lang)
-	} else {
-		fmt.Println("  GOTODOIST_LANG: (not set)")
 	}
 
 	return nil

@@ -85,7 +85,6 @@ func TestNewRepository(t *testing.T) {
 	cfg := &config.Config{
 		APIToken:     "test-token",
 		BaseURL:      "https://api.todoist.com/api/v1",
-		Language:     "en",
 		LocalStorage: repository.DefaultConfig(),
 	}
 

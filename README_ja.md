@@ -17,7 +17,6 @@ Goで構築された、Todoistタスクを管理するための強力なコマ�
 - 🏷️ **ラベル対応**: ラベルでタスクを分類
 - 📅 **期限管理**: タスクの期限を設定・管理
 - 🔄 **オフライン対応**: ローカル同期によるオフライン作業
-- 🌍 **多言語対応**: 英語と日本語をサポート
 - 🚀 **高速・軽量**: 速度と効率性を重視した設計
 
 ## インストール
@@ -134,9 +133,6 @@ gotodoist config init
 # 現在の設定を表示
 gotodoist config show
 
-# 設定の変更
-gotodoist config set language ja             # 言語を日本語に設定
-gotodoist config set language en             # 言語を英語に設定
 ```
 
 ## 設定オプション
@@ -148,7 +144,6 @@ gotodoist config set language en             # 言語を英語に設定
 ### 環境変数
 
 - `TODOIST_API_TOKEN`: TodoistのAPIトークン
-- `GOTODOIST_LANG`: 言語設定 (en/ja)
 
 ## 使用例とTips
 

@@ -21,7 +21,6 @@ const (
 type GlobalFlags struct {
 	Verbose       bool
 	Debug         bool
-	Lang          string
 	ShowBenchmark bool
 }
 
@@ -36,7 +35,6 @@ func init() {
 	// グローバルフラグの設定
 	rootCmd.PersistentFlags().BoolVarP(&globalFlags.Verbose, "verbose", "v", false, "enable verbose output")
 	rootCmd.PersistentFlags().BoolVar(&globalFlags.Debug, "debug", false, "enable debug mode")
-	rootCmd.PersistentFlags().StringVar(&globalFlags.Lang, "lang", "", "language preference (en/ja)")
 	rootCmd.PersistentFlags().BoolVar(&globalFlags.ShowBenchmark, "benchmark", false, "show detailed performance timing")
 
 	// 設定の初期化
@@ -83,17 +81,11 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	// コマンドラインフラグで設定を上書き
-	if globalFlags.Lang != "" {
-		appConfig.Language = globalFlags.Lang
-	}
-
 	// デバッグモードの場合、設定情報を表示
 	if globalFlags.Debug {
 		fmt.Fprintf(os.Stderr, "Configuration loaded:\n")
 		fmt.Fprintf(os.Stderr, "  API Token: %s\n", maskToken(appConfig.APIToken))
 		fmt.Fprintf(os.Stderr, "  Base URL:  %s\n", appConfig.BaseURL)
-		fmt.Fprintf(os.Stderr, "  Language:  %s\n", appConfig.Language)
 	}
 }
 
