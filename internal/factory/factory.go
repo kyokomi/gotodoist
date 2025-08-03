@@ -41,3 +41,9 @@ func NewRepository(cfg *config.Config, verbose bool) (*repository.Repository, er
 
 	return localRepository, nil
 }
+
+// NewRepositoryForTest はテスト用のRepositoryを作成する
+// Interfaceインターフェースを直接受け取ることで、モックを注入可能
+func NewRepositoryForTest(apiClient api.Interface, config *repository.Config, verbose bool) (*repository.Repository, error) {
+	return repository.NewRepository(apiClient, config, verbose)
+}

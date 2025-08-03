@@ -51,7 +51,7 @@ jobs:
       id: coverage
 
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v5
       with:
         files: ./coverage.out
