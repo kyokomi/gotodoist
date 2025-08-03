@@ -42,11 +42,23 @@ jobs:
     - name: Run tests
       run: go test -v -race ./...
 
-    - name: Upload coverage
+    - name: Generate coverage report
       if: matrix.os == 'ubuntu-latest'
       run: |
         go test -v -race -coverprofile=coverage.out ./...
-        bash <(curl -s https://codecov.io/bash)
+        go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//g' > coverage-percent.txt
+        echo "coverage=$(cat coverage-percent.txt)" >> $GITHUB_OUTPUT
+      id: coverage
+
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: codecov/codecov-action@v5
+      with:
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     name: Lint
