@@ -1,0 +1,48 @@
+# Codecov configuration for gotodoist
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        base: auto
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+
+comment:
+  layout: "header, diff, flags, components, reach, sunburst, uncovered, tree"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: false
+  hide_complexity: false
+  show_critical_paths: true
+
+component_management:
+  default_rules:
+    flag_regexes:
+      - name: "unit-tests"
+        paths:
+          - "**/*_test.go"
+      - name: "integration-tests"
+        paths:
+          - "**/cmd/*_integration_test.go"
+      - name: "e2e-tests"
+        paths:
+          - "**/e2e/**"
+
+flags:
+  unittests:
+    paths:
+      - "cmd/"
+      - "internal/"
+    carryforward: true
+
+github_checks:
+  annotations: true
