@@ -1,103 +1,35 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/kyokomi/gotodoist/internal/api"
-	"github.com/kyokomi/gotodoist/internal/cli"
-	"github.com/kyokomi/gotodoist/internal/config"
-	"github.com/kyokomi/gotodoist/internal/factory"
-	"github.com/kyokomi/gotodoist/internal/repository"
-	"github.com/kyokomi/gotodoist/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// testExecutorSetup はテスト用のexecutor設定を保持する構造体
-type testExecutorSetup struct {
-	executor   *projectExecutor
-	stdout     *bytes.Buffer
-	stderr     *bytes.Buffer
-	cleanup    func()
-	mockClient *api.MockClient
-	dbPath     string
+// testProjectExecutorSetup はテスト用のprojectExecutor設定を保持する構造体
+type testProjectExecutorSetup struct {
+	executor *projectExecutor
+	*testExecutorSetup
 }
 
-// setupTestExecutor はテスト用のprojectExecutorをセットアップするヘルパー関数
-func setupTestExecutor(t *testing.T) *testExecutorSetup {
+// setupTestProjectExecutor はテスト用のprojectExecutorをセットアップするヘルパー関数
+func setupTestProjectExecutor(t *testing.T) *testProjectExecutorSetup {
 	t.Helper()
 
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test.db")
-
-	mockClient := api.NewMockClient()
-
-	cfg := &config.Config{
-		APIToken: "test-token",
-		LocalStorage: &repository.Config{
-			Enabled:      true,
-			DatabasePath: dbPath,
-		},
-	}
-
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	output := cli.NewWithWriters(stdout, stderr, false)
-
-	repo, err := factory.NewRepositoryForTest(mockClient, cfg.LocalStorage, false)
-	require.NoError(t, err)
-
-	err = repo.Initialize(context.Background())
-	require.NoError(t, err)
+	base := setupTestExecutorBase(t)
 
 	executor := &projectExecutor{
-		cfg:        cfg,
-		repository: repo,
-		output:     output,
+		cfg:        base.cfg,
+		repository: base.repository,
+		output:     base.output,
 	}
 
-	cleanup := func() {
-		if err := repo.Close(); err != nil {
-			t.Logf("failed to close repo: %v", err)
-		}
-	}
-
-	return &testExecutorSetup{
-		executor:   executor,
-		stdout:     stdout,
-		stderr:     stderr,
-		cleanup:    cleanup,
-		mockClient: mockClient,
-		dbPath:     dbPath,
-	}
-}
-
-// insertTestProjectsIntoDB はテスト用のプロジェクトを直接DBに挿入するヘルパー関数
-func insertTestProjectsIntoDB(t *testing.T, dbPath string, projects []api.Project) {
-	t.Helper()
-
-	// SQLiteDBを直接開く
-	db, err := storage.NewSQLiteDB(dbPath)
-	require.NoError(t, err)
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Logf("failed to close db: %v", err)
-		}
-	}()
-
-	// IDが空の場合は自動採番
-	for i, project := range projects {
-		if project.ID == "" {
-			project.ID = fmt.Sprintf("project-%d", i+1)
-		}
-
-		// 直接DBにプロジェクトを挿入
-		err := db.InsertProject(project)
-		require.NoError(t, err)
+	return &testProjectExecutorSetup{
+		executor:          executor,
+		testExecutorSetup: base,
 	}
 }
 
@@ -160,7 +92,7 @@ func TestExecuteProjectList_Success(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange: テスト環境を準備
-			setup := setupTestExecutor(t)
+			setup := setupTestProjectExecutor(t)
 			defer setup.cleanup()
 
 			// テストデータを直接DBに挿入
@@ -218,7 +150,7 @@ func TestExecuteProjectAddWithOutput_Success(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange: テスト環境を準備
-			setup := setupTestExecutor(t)
+			setup := setupTestProjectExecutor(t)
 			defer setup.cleanup()
 
 			// CreateProjectのmockを設定
@@ -303,7 +235,7 @@ func TestExecuteProjectUpdateWithOutput_Success(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange: テスト環境を準備
-			setup := setupTestExecutor(t)
+			setup := setupTestProjectExecutor(t)
 			defer setup.cleanup()
 
 			// 既存プロジェクトをDBに挿入
@@ -376,7 +308,7 @@ func TestExecuteProjectDeleteWithOutput_Success(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange: テスト環境を準備
-			setup := setupTestExecutor(t)
+			setup := setupTestProjectExecutor(t)
 			defer setup.cleanup()
 
 			// 既存プロジェクトをDBに挿入
@@ -415,7 +347,7 @@ func TestExecuteProjectArchiveWithOutput_Success(t *testing.T) {
 	}
 
 	// Arrange: テスト環境を準備
-	setup := setupTestExecutor(t)
+	setup := setupTestProjectExecutor(t)
 	defer setup.cleanup()
 
 	// 既存プロジェクトをDBに挿入
@@ -450,7 +382,7 @@ func TestExecuteProjectUnarchiveWithOutput_Success(t *testing.T) {
 	}
 
 	// Arrange: テスト環境を準備
-	setup := setupTestExecutor(t)
+	setup := setupTestProjectExecutor(t)
 	defer setup.cleanup()
 
 	// 既存プロジェクトをDBに挿入

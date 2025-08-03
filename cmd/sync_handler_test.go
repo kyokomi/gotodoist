@@ -1,76 +1,35 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/kyokomi/gotodoist/internal/api"
-	"github.com/kyokomi/gotodoist/internal/cli"
-	"github.com/kyokomi/gotodoist/internal/config"
-	"github.com/kyokomi/gotodoist/internal/factory"
-	"github.com/kyokomi/gotodoist/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // testSyncExecutorSetup はテスト用のsyncExecutor設定を保持する構造体
 type testSyncExecutorSetup struct {
-	executor   *syncExecutor
-	stdout     *bytes.Buffer
-	stderr     *bytes.Buffer
-	cleanup    func()
-	mockClient *api.MockClient
-	dbPath     string
+	executor *syncExecutor
+	*testExecutorSetup
 }
 
 // setupTestSyncExecutor はテスト用のsyncExecutorをセットアップするヘルパー関数
 func setupTestSyncExecutor(t *testing.T) *testSyncExecutorSetup {
 	t.Helper()
 
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test.db")
-
-	mockClient := api.NewMockClient()
-
-	cfg := &config.Config{
-		APIToken: "test-token",
-		LocalStorage: &repository.Config{
-			Enabled:      true,
-			DatabasePath: dbPath,
-		},
-	}
-
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	output := cli.NewWithWriters(stdout, stderr, false)
-
-	repo, err := factory.NewRepositoryForTest(mockClient, cfg.LocalStorage, false)
-	require.NoError(t, err)
-
-	err = repo.Initialize(context.Background())
-	require.NoError(t, err)
+	base := setupTestExecutorBase(t)
 
 	executor := &syncExecutor{
-		cfg:        cfg,
-		repository: repo,
-		output:     output,
-	}
-
-	cleanup := func() {
-		if err := repo.Close(); err != nil {
-			t.Logf("failed to close repo: %v", err)
-		}
+		cfg:        base.cfg,
+		repository: base.repository,
+		output:     base.output,
 	}
 
 	return &testSyncExecutorSetup{
-		executor:   executor,
-		stdout:     stdout,
-		stderr:     stderr,
-		cleanup:    cleanup,
-		mockClient: mockClient,
-		dbPath:     dbPath,
+		executor:          executor,
+		testExecutorSetup: base,
 	}
 }
 
@@ -99,7 +58,7 @@ func TestExecuteSyncInitWithOutput_Success(t *testing.T) {
 	defer setup.cleanup()
 
 	// SyncFuncのmockを設定
-	setup.mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	setup.mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-sync-token",
 			Items:     []api.Item{},

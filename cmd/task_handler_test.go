@@ -1,103 +1,35 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/kyokomi/gotodoist/internal/api"
-	"github.com/kyokomi/gotodoist/internal/cli"
-	"github.com/kyokomi/gotodoist/internal/config"
-	"github.com/kyokomi/gotodoist/internal/factory"
-	"github.com/kyokomi/gotodoist/internal/repository"
-	"github.com/kyokomi/gotodoist/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // testTaskExecutorSetup はテスト用のtaskExecutor設定を保持する構造体
 type testTaskExecutorSetup struct {
-	executor   *taskExecutor
-	stdout     *bytes.Buffer
-	stderr     *bytes.Buffer
-	cleanup    func()
-	mockClient *api.MockClient
-	dbPath     string
+	executor *taskExecutor
+	*testExecutorSetup
 }
 
 // setupTestTaskExecutor はテスト用のtaskExecutorをセットアップするヘルパー関数
 func setupTestTaskExecutor(t *testing.T) *testTaskExecutorSetup {
 	t.Helper()
 
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test.db")
-
-	mockClient := api.NewMockClient()
-
-	cfg := &config.Config{
-		APIToken: "test-token",
-		LocalStorage: &repository.Config{
-			Enabled:      true,
-			DatabasePath: dbPath,
-		},
-	}
-
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	output := cli.NewWithWriters(stdout, stderr, false)
-
-	repo, err := factory.NewRepositoryForTest(mockClient, cfg.LocalStorage, false)
-	require.NoError(t, err)
-
-	err = repo.Initialize(context.Background())
-	require.NoError(t, err)
+	base := setupTestExecutorBase(t)
 
 	executor := &taskExecutor{
-		cfg:        cfg,
-		repository: repo,
-		output:     output,
-	}
-
-	cleanup := func() {
-		if err := repo.Close(); err != nil {
-			t.Logf("failed to close repo: %v", err)
-		}
+		cfg:        base.cfg,
+		repository: base.repository,
+		output:     base.output,
 	}
 
 	return &testTaskExecutorSetup{
-		executor:   executor,
-		stdout:     stdout,
-		stderr:     stderr,
-		cleanup:    cleanup,
-		mockClient: mockClient,
-		dbPath:     dbPath,
-	}
-}
-
-// insertTestTasksIntoDB はテスト用のタスクを直接DBに挿入するヘルパー関数
-func insertTestTasksIntoDB(t *testing.T, dbPath string, tasks []api.Item) {
-	t.Helper()
-
-	// SQLiteDBを直接開く
-	db, err := storage.NewSQLiteDB(dbPath)
-	require.NoError(t, err)
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Logf("failed to close db: %v", err)
-		}
-	}()
-
-	// IDが空の場合は自動採番
-	for i, task := range tasks {
-		if task.ID == "" {
-			task.ID = fmt.Sprintf("task-%d", i+1)
-		}
-
-		// 直接DBにタスクを挿入
-		err := db.InsertTask(task)
-		require.NoError(t, err)
+		executor:          executor,
+		testExecutorSetup: base,
 	}
 }
 
@@ -180,83 +112,92 @@ func TestExecuteTaskAddWithOutput_Success(t *testing.T) {
 }
 
 func TestExecuteTaskCompleteWithOutput_Success(t *testing.T) {
-	// 先にプロジェクトを作成
-	testProject := api.Project{
-		ID:   "test-project",
-		Name: "Test Project",
-	}
-	existingTask := api.Item{
-		ID:        "task-complete",
-		Content:   "Task to Complete",
-		ProjectID: "test-project",
-	}
-	params := &taskCompleteParams{
-		taskID: "task-complete",
-	}
-
-	// Arrange: テスト環境を準備
-	setup := setupTestTaskExecutor(t)
-	defer setup.cleanup()
-
-	// プロジェクトとタスクをDBに挿入
-	insertTestProjectsIntoDB(t, setup.dbPath, []api.Project{testProject})
-	insertTestTasksIntoDB(t, setup.dbPath, []api.Item{existingTask})
-
-	// CloseTaskのmockを設定
-	setup.mockClient.CloseTaskFunc = func(_ context.Context, _ string) (*api.SyncResponse, error) {
-		return &api.SyncResponse{
-			SyncToken: "completed-token",
-		}, nil
-	}
-
-	// Act: テスト対象を実行
-	err := setup.executor.executeTaskCompleteWithOutput(context.Background(), params)
-
-	// Assert: 結果を検証
-	require.NoError(t, err)
-
-	outputStr := setup.stdout.String()
-	assert.Contains(t, outputStr, "Task completed successfully!", "期待される出力が含まれていません")
-}
-
-func TestExecuteTaskUncompleteWithOutput_Success(t *testing.T) {
-	// 先にプロジェクトを作成
-	testProject := api.Project{
-		ID:   "test-project-2",
-		Name: "Test Project 2",
-	}
-	existingTask := api.Item{
-		ID:        "task-uncomplete",
-		Content:   "Task to Uncomplete",
-		ProjectID: "test-project-2",
-	}
-	params := &taskCompleteParams{
-		taskID: "task-uncomplete",
-	}
-
-	// Arrange: テスト環境を準備
-	setup := setupTestTaskExecutor(t)
-	defer setup.cleanup()
-
-	// プロジェクトとタスクをDBに挿入
-	insertTestProjectsIntoDB(t, setup.dbPath, []api.Project{testProject})
-	insertTestTasksIntoDB(t, setup.dbPath, []api.Item{existingTask})
-
-	// ReopenTaskのmockを設定
-	setup.mockClient.ReopenTaskFunc = func(_ context.Context, _ string) (*api.SyncResponse, error) {
-		return &api.SyncResponse{
-			SyncToken: "uncompleted-token",
-		}, nil
+	tests := []struct {
+		name           string
+		testProject    api.Project
+		existingTask   api.Item
+		params         *taskCompleteParams
+		setupMock      func(*api.MockClient)
+		expectedOutput string
+		executeFunc    func(*taskExecutor, context.Context, *taskCompleteParams) error
+	}{
+		{
+			name: "タスク完了",
+			testProject: api.Project{
+				ID:   "test-project",
+				Name: "Test Project",
+			},
+			existingTask: api.Item{
+				ID:        "task-complete",
+				Content:   "Task to Complete",
+				ProjectID: "test-project",
+			},
+			params: &taskCompleteParams{
+				taskID: "task-complete",
+			},
+			setupMock: func(mockClient *api.MockClient) {
+				mockClient.CloseTaskFunc = func(_ context.Context, _ string) (*api.SyncResponse, error) {
+					return &api.SyncResponse{
+						SyncToken: "completed-token",
+					}, nil
+				}
+			},
+			expectedOutput: "Task completed successfully!",
+			executeFunc: func(e *taskExecutor, ctx context.Context, params *taskCompleteParams) error {
+				return e.executeTaskCompleteWithOutput(ctx, params)
+			},
+		},
+		{
+			name: "タスク未完了",
+			testProject: api.Project{
+				ID:   "test-project-2",
+				Name: "Test Project 2",
+			},
+			existingTask: api.Item{
+				ID:        "task-uncomplete",
+				Content:   "Task to Uncomplete",
+				ProjectID: "test-project-2",
+			},
+			params: &taskCompleteParams{
+				taskID: "task-uncomplete",
+			},
+			setupMock: func(mockClient *api.MockClient) {
+				mockClient.ReopenTaskFunc = func(_ context.Context, _ string) (*api.SyncResponse, error) {
+					return &api.SyncResponse{
+						SyncToken: "uncompleted-token",
+					}, nil
+				}
+			},
+			expectedOutput: "Task marked as uncompleted successfully!",
+			executeFunc: func(e *taskExecutor, ctx context.Context, params *taskCompleteParams) error {
+				return e.executeTaskUncompleteWithOutput(ctx, params)
+			},
+		},
 	}
 
-	// Act: テスト対象を実行
-	err := setup.executor.executeTaskUncompleteWithOutput(context.Background(), params)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange: テスト環境を準備
+			setup := setupTestTaskExecutor(t)
+			defer setup.cleanup()
 
-	// Assert: 結果を検証
-	require.NoError(t, err)
+			// プロジェクトとタスクをDBに挿入
+			insertTestProjectsIntoDB(t, setup.dbPath, []api.Project{tt.testProject})
+			insertTestTasksIntoDB(t, setup.dbPath, []api.Item{tt.existingTask})
 
-	outputStr := setup.stdout.String()
-	assert.Contains(t, outputStr, "Task marked as uncompleted successfully!", "期待される出力が含まれていません")
+			// mockを設定
+			tt.setupMock(setup.mockClient)
+
+			// Act: テスト対象を実行
+			err := tt.executeFunc(setup.executor, context.Background(), tt.params)
+
+			// Assert: 結果を検証
+			require.NoError(t, err)
+
+			outputStr := setup.stdout.String()
+			assert.Contains(t, outputStr, tt.expectedOutput, "期待される出力が含まれていません")
+		})
+	}
 }
 
 func TestExecuteTaskDeleteWithOutput_Success(t *testing.T) {
@@ -372,7 +313,7 @@ func TestExecuteTaskUpdateWithOutput_Success(t *testing.T) {
 	insertTestTasksIntoDB(t, setup.dbPath, []api.Item{existingTask})
 
 	// UpdateTaskのmockを設定
-	setup.mockClient.UpdateTaskFunc = func(_ context.Context, _ string, req *api.UpdateTaskRequest) (*api.SyncResponse, error) {
+	setup.mockClient.UpdateTaskFunc = func(_ context.Context, _ string, _ *api.UpdateTaskRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "updated-token",
 		}, nil
