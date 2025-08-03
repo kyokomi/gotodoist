@@ -53,6 +53,8 @@ func (c *Client) GetAllSections(ctx context.Context) ([]Section, error) {
 }
 
 // AddItem は新しいタスクを追加する
+// NOTE: 現在のCLIでは未使用ですが、低レベルAPIとして保持しています。
+// 通常はCreateTaskを使用してください。
 func (c *Client) AddItem(ctx context.Context, content, projectID string) (*SyncResponse, error) {
 	cmd := Command{
 		Type: CommandItemAdd,
@@ -133,6 +135,8 @@ func (c *Client) DeleteItem(ctx context.Context, itemID string) (*SyncResponse, 
 }
 
 // AddProject は新しいプロジェクトを追加する
+// NOTE: 現在のCLIでは未使用ですが、低レベルAPIとして保持しています。
+// 通常はCreateProjectを使用してください。
 func (c *Client) AddProject(ctx context.Context, name string) (*SyncResponse, error) {
 	cmd := Command{
 		Type: CommandProjectAdd,
@@ -191,6 +195,8 @@ func (c *Client) DeleteProjectSync(ctx context.Context, projectID string) (*Sync
 }
 
 // ExecuteCommands は複数のコマンドを同時に実行する
+// NOTE: 現在のCLIでは未使用ですが、バッチ処理や高度な
+// 同期操作を実装する際に使用するため残しています。
 func (c *Client) ExecuteCommands(ctx context.Context, commands []Command) (*SyncResponse, error) {
 	if len(commands) == 0 {
 		return nil, fmt.Errorf("no commands provided")

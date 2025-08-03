@@ -267,6 +267,8 @@ func (p Priority) IsValid() bool {
 }
 
 // GetTasksByPriority は指定された優先度のタスクを取得する
+// NOTE: 現在のCLIでは未使用ですが、将来的に優先度による
+// タスクフィルタリング機能を実装する際に使用するため残しています。
 func (c *Client) GetTasksByPriority(ctx context.Context, priority Priority) ([]Item, error) {
 	if !priority.IsValid() {
 		return nil, fmt.Errorf("invalid priority: %s", priority.String())
