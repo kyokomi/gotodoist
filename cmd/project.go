@@ -195,24 +195,28 @@ func getProjectAddParams(cmd *cobra.Command, args []string) *projectAddParams {
 func runProjectAdd(cmd *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupProjectExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getProjectAddParams(cmd, args)
+	return executor.executeProjectAddWithOutput(ctx, params)
+}
 
-	// 3. プロジェクト追加実行
-	resp, err := executor.executeProjectAdd(ctx, params)
+// executeProjectAddWithOutput はプロジェクト追加と結果表示を実行する（テスト可能）
+func (e *projectExecutor) executeProjectAddWithOutput(ctx context.Context, params *projectAddParams) error {
+	// 1. プロジェクト追加実行
+	resp, err := e.executeProjectAdd(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displayProjectAddResult(params, resp)
+	// 2. 結果表示
+	e.displayProjectAddResult(params, resp)
 
 	return nil
 }
@@ -245,29 +249,33 @@ func getProjectUpdateParams(cmd *cobra.Command, args []string) *projectUpdatePar
 func runProjectUpdate(cmd *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupProjectExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getProjectUpdateParams(cmd, args)
+	return executor.executeProjectUpdateWithOutput(ctx, params)
+}
 
-	// 3. 更新内容の確認
+// executeProjectUpdateWithOutput はプロジェクト更新と結果表示を実行する（テスト可能）
+func (e *projectExecutor) executeProjectUpdateWithOutput(ctx context.Context, params *projectUpdateParams) error {
+	// 1. 更新内容の確認
 	if params.newName == "" && params.color == "" && !params.favoriteChanged {
 		return fmt.Errorf("at least one update field must be specified (--name, --color, --favorite)")
 	}
 
-	// 4. プロジェクト更新実行
-	resp, err := executor.executeProjectUpdate(ctx, params)
+	// 2. プロジェクト更新実行
+	resp, err := e.executeProjectUpdate(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to update project: %w", err)
 	}
 
-	// 5. 結果表示
-	executor.displayProjectUpdateResult(params, resp)
+	// 3. 結果表示
+	e.displayProjectUpdateResult(params, resp)
 
 	return nil
 }
@@ -291,18 +299,22 @@ func getProjectDeleteParams(cmd *cobra.Command, args []string) *projectDeletePar
 func runProjectDelete(cmd *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupProjectExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getProjectDeleteParams(cmd, args)
+	return executor.executeProjectDeleteWithOutput(ctx, params)
+}
 
-	// 3. 削除対象の確認
-	project, shouldDelete, err := executor.confirmProjectDeletion(ctx, params)
+// executeProjectDeleteWithOutput はプロジェクト削除と結果表示を実行する（テスト可能）
+func (e *projectExecutor) executeProjectDeleteWithOutput(ctx context.Context, params *projectDeleteParams) error {
+	// 1. 削除対象の確認
+	project, shouldDelete, err := e.confirmProjectDeletion(ctx, params)
 	if err != nil {
 		return err
 	}
@@ -310,14 +322,14 @@ func runProjectDelete(cmd *cobra.Command, args []string) error {
 		return nil // ユーザーがキャンセル
 	}
 
-	// 4. プロジェクト削除実行
-	resp, err := executor.deleteProject(ctx, project.ID)
+	// 2. プロジェクト削除実行
+	resp, err := e.deleteProject(ctx, project.ID)
 	if err != nil {
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
 
-	// 5. 結果表示
-	executor.displayProjectDeleteResult(project, resp)
+	// 3. 結果表示
+	e.displayProjectDeleteResult(project, resp)
 
 	return nil
 }
@@ -338,24 +350,28 @@ func getProjectArchiveParams(args []string) *projectArchiveParams {
 func runProjectArchive(_ *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupProjectExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getProjectArchiveParams(args)
+	return executor.executeProjectArchiveWithOutput(ctx, params)
+}
 
-	// 3. プロジェクトアーカイブ実行
-	resp, err := executor.executeProjectArchive(ctx, params)
+// executeProjectArchiveWithOutput はプロジェクトアーカイブと結果表示を実行する（テスト可能）
+func (e *projectExecutor) executeProjectArchiveWithOutput(ctx context.Context, params *projectArchiveParams) error {
+	// 1. プロジェクトアーカイブ実行
+	resp, err := e.executeProjectArchive(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to archive project: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displaySuccessMessageForProject("📦 Project archived successfully!", resp.SyncToken)
+	// 2. 結果表示
+	e.displaySuccessMessageForProject("📦 Project archived successfully!", resp.SyncToken)
 
 	return nil
 }
@@ -364,24 +380,28 @@ func runProjectArchive(_ *cobra.Command, args []string) error {
 func runProjectUnarchive(_ *cobra.Command, args []string) error {
 	ctx := createBaseContext()
 
-	// 1. セットアップ
+	// セットアップ
 	executor, err := setupProjectExecution(ctx)
 	if err != nil {
 		return err
 	}
 	defer executor.cleanup()
 
-	// 2. パラメータ取得
+	// パラメータ取得と実行
 	params := getProjectArchiveParams(args)
+	return executor.executeProjectUnarchiveWithOutput(ctx, params)
+}
 
-	// 3. プロジェクトアーカイブ解除実行
-	resp, err := executor.executeProjectUnarchive(ctx, params)
+// executeProjectUnarchiveWithOutput はプロジェクトアーカイブ解除と結果表示を実行する（テスト可能）
+func (e *projectExecutor) executeProjectUnarchiveWithOutput(ctx context.Context, params *projectArchiveParams) error {
+	// 1. プロジェクトアーカイブ解除実行
+	resp, err := e.executeProjectUnarchive(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to unarchive project: %w", err)
 	}
 
-	// 4. 結果表示
-	executor.displaySuccessMessageForProject("📁 Project unarchived successfully!", resp.SyncToken)
+	// 2. 結果表示
+	e.displaySuccessMessageForProject("📁 Project unarchived successfully!", resp.SyncToken)
 
 	return nil
 }
