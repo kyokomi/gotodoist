@@ -56,7 +56,7 @@ func TestTaskAdd_WithProject(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  existingProjects,
@@ -107,7 +107,7 @@ func TestTaskComplete_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  testProjects,
@@ -154,7 +154,7 @@ func TestTaskUncomplete_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  testProjects,
@@ -200,7 +200,7 @@ func TestTaskUpdate_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  testProjects,
@@ -253,7 +253,7 @@ func TestTaskDelete_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  testProjects,
@@ -305,7 +305,7 @@ func TestTaskList_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  mockProjects,
@@ -359,7 +359,7 @@ func TestFindTaskByID_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "initial-token",
 			Projects:  testProjects,

@@ -27,7 +27,7 @@ func TestSyncIncrementalSync_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "sync-incremental-token",
 			Projects:  testProjects,
@@ -64,7 +64,7 @@ func TestSyncInitialSync_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "sync-initial-token",
 			Projects:  testProjects,
@@ -98,7 +98,7 @@ func TestSyncStatus_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "sync-status-token",
 			Projects:  testProjects,
@@ -136,7 +136,7 @@ func TestSyncReset_Success(t *testing.T) {
 
 	// モッククライアントをセットアップ
 	mockClient := api.NewMockClient()
-	mockClient.SyncFunc = func(_ context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	mockClient.SyncFunc = func(_ context.Context, _ *api.SyncRequest) (*api.SyncResponse, error) {
 		return &api.SyncResponse{
 			SyncToken: "sync-reset-token",
 			Projects:  testProjects,
